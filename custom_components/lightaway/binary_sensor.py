@@ -14,22 +14,23 @@ async def async_setup_entry(hass, entry, async_add_entities):
     def add_missing():
         new = []
         registry = async_get_registry(hass)
-        allowed = set(runtime.settings["lights"])
-        for uid, sensor in list(existing.items()):
-            if sensor.light not in allowed:
-                if sensor.entity_id and registry.async_get(sensor.entity_id):
-                    registry.async_remove(sensor.entity_id)
-                existing.pop(uid)
+        desired = set()
         for light in runtime.settings["lights"]:
             registry_entry = registry.async_get(light)
             stable = registry_entry.id if registry_entry else light
             unique = f"{entry.entry_id}_{stable}"
+            desired.add(unique)
             if unique not in existing:
                 sensor = LightAwayCalculated(runtime, light, unique)
                 existing[unique] = sensor
                 new.append(sensor)
             else:
                 existing[unique].light = light
+        for unique, sensor in list(existing.items()):
+            if unique not in desired:
+                if sensor.entity_id and registry.async_get(sensor.entity_id):
+                    registry.async_remove(sensor.entity_id)
+                existing.pop(unique)
         if new:
             async_add_entities(new)
 

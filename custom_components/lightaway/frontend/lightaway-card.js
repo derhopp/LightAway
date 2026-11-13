@@ -151,6 +151,8 @@ class LightAwayCard extends HTMLElement {
     });
     enableWrap.append(enable,document.createTextNode(t.simulation));flex.append(enableWrap);
     card.append(flex);
+    const presenceValue=this._snapshot.presence_status;
+    card.append(this._el("p",{class:"message"},!settings.presence?t.presence_not_configured:(presenceValue===null?t.presence_unavailable:(presenceValue?t.active:t.away))));
     card.append(this._el("h3",{},t.select));
     card.append(this._el("p",{},t.select_hint));
     const list=this._el("div",{class:"list"});
@@ -200,7 +202,7 @@ class LightAwayCard extends HTMLElement {
       const cells=[
         this._name(item.entity_id),
         item.original_day||"—",
-        state?.state||t.unavailable,
+        state?.state==="on"?t.on:(state?.state==="off"?t.off:t.unavailable),
         item.desired==null?t.unavailable:t[item.desired],
         t[item.status]||item.status||t.invalid,
       ];

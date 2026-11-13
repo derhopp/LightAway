@@ -35,6 +35,7 @@ class LightAwayRuntime:
         self._control_lock = asyncio.Lock()
         self._generation = 0
         self._day = None
+        self._last_rebuild_at = None
         self._callbacks: list = []
         self._add_sensors = None
         self._ready = False
@@ -81,7 +82,8 @@ class LightAwayRuntime:
 
     @callback
     def _started(self, _event) -> None:
-        self.request_rebuild()
+        if self._rebuild_task is None or self._rebuild_task.done():
+            self.request_rebuild()
 
     @callback
     def _registry_changed(self, event) -> None:
@@ -112,6 +114,13 @@ class LightAwayRuntime:
         if self._day != today:
             if self._rebuild_task is None or self._rebuild_task.done():
                 self.request_rebuild()
+        elif (
+            any(r.get("status") == "recorder_unavailable" for r in self.results.values())
+            and self._last_rebuild_at is not None
+            and (dt_util.utcnow() - self._last_rebuild_at).total_seconds() >= 600
+            and (self._rebuild_task is None or self._rebuild_task.done())
+        ):
+            self.request_rebuild()
         else:
             self.request_update()
 
@@ -227,6 +236,7 @@ class LightAwayRuntime:
                 return
             self.results = new_results
             self._day = today
+            self._last_rebuild_at = dt_util.utcnow()
             self._ready = True
             await self.async_update()
 

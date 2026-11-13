@@ -108,7 +108,11 @@ def reconstruct(
     observed_seconds = 0.0
     replay: list[TimedState] = []
 
+    previous_run_end = None
     for run in coverage:
+        if previous_run_end is not None and run.start.astimezone(UTC) < previous_run_end:
+            continue
+        previous_run_end = run.end.astimezone(UTC)
         begin = max(start, run.start.astimezone(UTC))
         finish = min(end, run.end.astimezone(UTC))
         if begin >= finish:
