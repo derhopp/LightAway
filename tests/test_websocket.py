@@ -28,9 +28,9 @@ async def test_status_and_configuration_are_exposed():
     assert add_command.call_count == 2
     status = add_command.call_args_list[0].args[1]
     configure = add_command.call_args_list[1].args[1]
-    await status(hass, connection, {"id": 1, "type": "lightaway/status"})
+    await status.__wrapped__(hass, connection, {"id": 1, "type": "lightaway/status"})
     connection.send_result.assert_called_with(1, runtime.snapshot.return_value)
-    await configure(
+    await configure.__wrapped__(
         hass,
         connection,
         {"id": 2, "type": "lightaway/configure", "enabled": True},
