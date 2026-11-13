@@ -43,6 +43,7 @@ async def test_status_and_configuration_are_exposed():
     runtime.async_configure.assert_awaited_once_with({"enabled": True})
     connection.send_result.assert_called_with(2, runtime.snapshot.return_value)
 
+
 @pytest.mark.asyncio
 async def test_configure_requires_actual_websocket_admin_before_saving():
     """Use the registered HA decorator, not a non-existent connection method."""
