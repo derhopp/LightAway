@@ -21,9 +21,9 @@ class LightAwaySwitch(SwitchEntity):
         self._attr_unique_id = f"{runtime.entry_id}_simulation"
 
     async def async_added_to_hass(self):
-        self.async_on_remove(async_dispatcher_connect(
-            self.hass, UPDATE_SIGNAL, self.async_write_ha_state
-        ))
+        self.async_on_remove(
+            async_dispatcher_connect(self.hass, UPDATE_SIGNAL, self.async_write_ha_state)
+        )
 
     @property
     def is_on(self):

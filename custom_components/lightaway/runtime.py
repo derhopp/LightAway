@@ -45,9 +45,15 @@ class LightAwayRuntime:
         if isinstance(saved, dict):
             self.settings = {**DEFAULT_OPTIONS, **saved}
         self.settings["lights"] = list(dict.fromkeys(self.settings.get("lights") or []))
-        self._callbacks.append(async_track_time_interval(self.hass, self._tick, timedelta(seconds=30)))
-        self._callbacks.append(self.hass.bus.async_listen("entity_registry_updated", self._registry_changed))
-        self._callbacks.append(self.hass.bus.async_listen(EVENT_HOMEASSISTANT_STARTED, self._started))
+        self._callbacks.append(
+            async_track_time_interval(self.hass, self._tick, timedelta(seconds=30))
+        )
+        self._callbacks.append(
+            self.hass.bus.async_listen("entity_registry_updated", self._registry_changed)
+        )
+        self._callbacks.append(
+            self.hass.bus.async_listen(EVENT_HOMEASSISTANT_STARTED, self._started)
+        )
         self._track_entities()
         # Startup rebuilds without ever using stale or incomplete sequences.
         self.request_rebuild()
@@ -67,9 +73,11 @@ class LightAwayRuntime:
         entities = [*self.settings["lights"]]
         if self.settings["presence"]:
             entities.append(self.settings["presence"])
-        self._cancel_entities = async_track_state_change_event(
-            self.hass, entities, self._state_changed
-        ) if entities else None
+        self._cancel_entities = (
+            async_track_state_change_event(self.hass, entities, self._state_changed)
+            if entities
+            else None
+        )
 
     @callback
     def _started(self, _event) -> None:
@@ -164,7 +172,9 @@ class LightAwayRuntime:
                             break
                         # Query each candidate day once for the remaining lights.
                         try:
-                            events, runs = await self.history.async_day(day, zone, [presence_entity, *pending])
+                            events, runs = await self.history.async_day(
+                                day, zone, [presence_entity, *pending]
+                            )
                         except Exception:
                             _LOGGER.exception("Recorder history unavailable on %s", day)
                             for light in pending:
@@ -173,7 +183,10 @@ class LightAwayRuntime:
                         presence = presence_cache.get(day)
                         if presence is None:
                             presence = reconstruct(
-                                day, zone, events.get(presence_entity, ()), runs,
+                                day,
+                                zone,
+                                events.get(presence_entity, ()),
+                                runs,
                                 lambda value: normalize_presence(value, invert) is True,
                             )
                             presence_cache[day] = presence
@@ -183,7 +196,10 @@ class LightAwayRuntime:
                         for light in pending:
                             try:
                                 timeline = reconstruct(
-                                    day, zone, events.get(light, ()), runs,
+                                    day,
+                                    zone,
+                                    events.get(light, ()),
+                                    runs,
                                     lambda value: value in ("on", "off"),
                                 )
                                 if timeline.valid:
@@ -201,9 +217,12 @@ class LightAwayRuntime:
                     for light in lights:
                         new_results.setdefault(light, self._error("calculation_error"))
             for light in lights:
-                new_results.setdefault(light, self._error(
-                    "insufficient_history" if had_presence_match else "no_original_day"
-                ))
+                new_results.setdefault(
+                    light,
+                    self._error(
+                        "insufficient_history" if had_presence_match else "no_original_day"
+                    ),
+                )
             if generation != self._generation:
                 return
             self.results = new_results
@@ -275,17 +294,21 @@ class LightAwayRuntime:
         for entity in self.settings["lights"]:
             result = self.results.get(entity, self._error("recalculating"))
             state = self.hass.states.get(entity)
-            items.append({
-                "entity_id": entity,
-                "original_day": result.get("original_day"),
-                "actual": state.state if state else None,
-                "desired": result.get("desired"),
-                "status": (
-                    "light_missing" if state is None else
-                    "light_unavailable" if state.state not in ("on", "off") else
-                    result.get("status")
-                ),
-            })
+            items.append(
+                {
+                    "entity_id": entity,
+                    "original_day": result.get("original_day"),
+                    "actual": state.state if state else None,
+                    "desired": result.get("desired"),
+                    "status": (
+                        "light_missing"
+                        if state is None
+                        else "light_unavailable"
+                        if state.state not in ("on", "off")
+                        else result.get("status")
+                    ),
+                }
+            )
         return {
             "settings": self.settings,
             "presence_status": self.presence(),

@@ -32,6 +32,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
                 existing[unique].light = light
         if new:
             async_add_entities(new)
+
     add_missing()
     entry.async_on_unload(async_dispatcher_connect(hass, UPDATE_SIGNAL, add_missing))
 
@@ -49,9 +50,7 @@ class LightAwayCalculated(BinarySensorEntity):
         self._attr_name = f"{light.split('.', 1)[-1]} LightAway"
 
     async def async_added_to_hass(self):
-        self.async_on_remove(async_dispatcher_connect(
-            self.hass, UPDATE_SIGNAL, self._changed
-        ))
+        self.async_on_remove(async_dispatcher_connect(self.hass, UPDATE_SIGNAL, self._changed))
 
     def _changed(self):
         if self.light not in self.runtime.settings["lights"]:
@@ -72,5 +71,8 @@ class LightAwayCalculated(BinarySensorEntity):
     @property
     def extra_state_attributes(self):
         result = self.runtime.results.get(self.light, {})
-        return {"source_entity": self.light, "original_day": result.get("original_day"),
-                "diagnostic": result.get("status")}
+        return {
+            "source_entity": self.light,
+            "original_day": result.get("original_day"),
+            "diagnostic": result.get("status"),
+        }

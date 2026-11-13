@@ -115,7 +115,8 @@ def reconstruct(
             continue
         # Only events *within this run* establish a trustworthy initial state.
         applicable = [
-            event for event in ordered
+            event
+            for event in ordered
             if run.start.astimezone(UTC) <= event.at.astimezone(UTC) < finish
         ]
         state: str | None = None

@@ -41,9 +41,7 @@ async def test_independent_reference_days_and_calculated_states():
         events = {
             "binary_sensor.present": [TimedState(start, "on")],
             "light.a": [TimedState(start, "off")],
-            "light.b": (
-                [] if day == candidates[0] else [TimedState(start, "on")]
-            ),
+            "light.b": ([] if day == candidates[0] else [TimedState(start, "on")]),
         }
         return {key: events.get(key, []) for key in entities}, [Coverage(start, end)]
 

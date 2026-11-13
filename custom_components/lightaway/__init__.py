@@ -22,9 +22,9 @@ CARD_PATH = Path(__file__).parent / "frontend" / "lightaway-card.js"
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     hass.data.setdefault(DOMAIN, {})
     async_register(hass)
-    await hass.http.async_register_static_paths([
-        StaticPathConfig(CARD_URL, str(CARD_PATH), cache_headers=False)
-    ])
+    await hass.http.async_register_static_paths(
+        [StaticPathConfig(CARD_URL, str(CARD_PATH), cache_headers=False)]
+    )
     return True
 
 
@@ -36,16 +36,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Register the card automatically when Lovelace is in storage mode.
     try:
         from homeassistant.components.lovelace.const import LOVELACE_DATA
+
         lovelace = hass.data.get(LOVELACE_DATA)
         if lovelace and lovelace.resource_mode == "storage":
             collection = lovelace.resources
             await collection.async_get_info()
-            if not any(r.get("url", "").split("?")[0] == CARD_URL for r in collection.async_items()):
+            if not any(
+                r.get("url", "").split("?")[0] == CARD_URL for r in collection.async_items()
+            ):
                 await collection.async_create_item({"res_type": "module", "url": CARD_URL})
     except Exception:
         _LOGGER.warning(
             "Could not register LightAway dashboard resource automatically; "
-            "add %s as a JavaScript module in Dashboard resources", CARD_URL,
+            "add %s as a JavaScript module in Dashboard resources",
+            CARD_URL,
             exc_info=True,
         )
     return True

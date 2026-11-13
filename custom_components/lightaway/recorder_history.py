@@ -73,7 +73,7 @@ class RecorderHistory:
             # Official HA history API for changes inside the day. Never use
             # synthetic start-time states: those can mask recorder outages.
             for index in range(0, len(entity_ids), 64):
-                subset = entity_ids[index:index + 64]
+                subset = entity_ids[index : index + 64]
                 history = get_significant_states_with_session(
                     self.hass,
                     session,
@@ -93,10 +93,13 @@ class RecorderHistory:
             # For a state carried into the day (or across a later recorder
             # restart), demand a REAL recorded sample from *the same run*.
             # This also permits completely silent days when evidenced.
-            meta_ids = dict(session.execute(
-                select(StatesMeta.entity_id, StatesMeta.metadata_id)
-                .where(StatesMeta.entity_id.in_(entity_ids))
-            ).all())
+            meta_ids = dict(
+                session.execute(
+                    select(StatesMeta.entity_id, StatesMeta.metadata_id).where(
+                        StatesMeta.entity_id.in_(entity_ids)
+                    )
+                ).all()
+            )
             for run in runs:
                 begin = max(start, run.start)
                 if begin >= end:
