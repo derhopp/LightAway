@@ -4,9 +4,12 @@ const translations = {
     title: "LightAway", presence: "Presence entity", invert: "Invert presence",
     lights: "Lights", simulation: "Enable simulation",
     source: "Light", date: "Original day", actual: "Actual", desired: "Desired",
-    status: "Status", save: "Save", saved: "Configuration saved",
-    choose: "Select an entity", empty: "No lights selected",
-    select: "Select lights", loading: "Loading LightAway…",
+    status: "Status", saved: "Configuration saved automatically",
+    choose: "Search by name or entity ID", empty: "No lights selected",
+    select: "Selected lights", addLight: "Add a light",
+    lightField: "Light", duplicate: "This light is already selected",
+    searchHint: "Type a name or entity ID to search. Changes are saved automatically.",
+    loading: "Loading LightAway…",
     error: "Failed to load LightAway", active: "Present", away: "Away",
     invalid: "Unknown", on: "On", off: "Off", unavailable: "Unavailable",
     ok: "Valid", no_original_day: "No suitable original day",
@@ -24,9 +27,12 @@ const translations = {
     title: "LightAway", presence: "Anwesenheits-Entität", invert: "Anwesenheit invertieren",
     lights: "Leuchten", simulation: "Simulation aktivieren",
     source: "Licht", date: "Original-Tag", actual: "Ist-Zustand", desired: "Soll-Zustand",
-    status: "Status", save: "Speichern", saved: "Konfiguration gespeichert",
-    choose: "Entität auswählen", empty: "Keine Leuchten ausgewählt",
-    select: "Leuchten auswählen", loading: "LightAway wird geladen…",
+    status: "Status", saved: "Konfiguration automatisch gespeichert",
+    choose: "Nach Name oder Entity-ID suchen", empty: "Keine Leuchten ausgewählt",
+    select: "Ausgewählte Leuchten", addLight: "Leuchte hinzufügen",
+    lightField: "Leuchte", duplicate: "Diese Leuchte ist bereits ausgewählt",
+    searchHint: "Nach Name oder Entity-ID suchen. Änderungen werden automatisch gespeichert.",
+    loading: "LightAway wird geladen…",
     error: "LightAway konnte nicht geladen werden", active: "Anwesend", away: "Abwesend",
     invalid: "Unbekannt", on: "An", off: "Aus", unavailable: "Nicht verfügbar",
     ok: "Gültig", no_original_day: "Kein geeigneter Original-Tag",
@@ -49,14 +55,11 @@ h3{font-size:1rem;margin:18px 0 8px}
 .flex{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
 .field{min-width:215px;flex:1}
 label{display:block;font-size:.875rem;margin-bottom:5px}
-select,input,button{font:inherit;color:var(--primary-text-color)}
-select{background:var(--card-background-color);border:1px solid var(--divider-color);border-radius:6px;padding:9px;width:100%}
-button{border:0;border-radius:6px;padding:9px 18px;background:var(--primary-color);color:var(--text-primary-color,#fff);cursor:pointer}
-button:disabled{opacity:.5}
+ha-entity-picker{display:block;width:100%;min-width:0}
+.entity-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px;align-items:start}
+.helper{color:var(--secondary-text-color);font-size:.85rem;line-height:1.4}
 label.toggle{display:flex;gap:8px;align-items:center;cursor:pointer}
 input[type=checkbox]{accent-color:var(--primary-color);width:18px;height:18px}
-.list{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px 12px;max-height:220px;overflow:auto;padding:8px;border:1px solid var(--divider-color);border-radius:8px}
-.list label{display:flex;align-items:center;gap:7px;overflow-wrap:anywhere}
 table{border-collapse:collapse;width:100%}
 th,td{border-bottom:1px solid var(--divider-color);padding:10px 6px;text-align:left;overflow-wrap:anywhere}
 th{font-size:.82rem;color:var(--secondary-text-color)}
@@ -94,8 +97,12 @@ class LightAwayCard extends HTMLElement {
       const data=await this._hass.callWS({type:"lightaway/status"});
       const previous=JSON.stringify(this._snapshot?.settings);
       this._snapshot=data;
-      if (!silent || previous!==JSON.stringify(data.settings) || !this._root) this._draw();
-      else this._refreshStates();
+      if(this._pendingWrites){
+        this._refreshStates();
+      }else if (!silent || previous!==JSON.stringify(data.settings) || !this._root){
+        this._draftSettings={...data.settings};
+        this._draw();
+      }else this._refreshStates();
     }catch(error){
       if(!silent){this._error=String(error);this._draw();}
     }finally{this._loading=false;}
@@ -108,6 +115,47 @@ class LightAwayCard extends HTMLElement {
     }
     if(value!==undefined)el.textContent=value;
     return el;
+  }
+  _entityPicker(domains,value,label,placeholder){
+    const picker=this._el("ha-entity-picker");
+    picker.includeDomains=domains;
+    picker.showEntityId=true;
+    picker.value=value;
+    picker.label=label;
+    picker.placeholder=placeholder;
+    return picker;
+  }
+  _showMessage(message){
+    if(this._message)this._message.textContent=message;
+  }
+  async _save(changes){
+    // Serialize writes to avoid losing rapid edits to different fields.
+    const next={...(this._draftSettings||this._snapshot?.settings||{}),...changes};
+    this._draftSettings=next;
+    this._pendingWrites=(this._pendingWrites||0)+1;
+    const task=async()=>{
+      const data=await this._hass.callWS({type:"lightaway/configure",...changes});
+      this._snapshot=data;
+      return data;
+    };
+    const pending=(this._saveChain||Promise.resolve()).catch(()=>{}).then(task);
+    this._saveChain=pending;
+    try{
+      await pending;
+      this._pendingWrites--;
+      if(this._pendingWrites===0){
+        this._draftSettings={...this._snapshot.settings};
+        this._draw();
+        this._showMessage(this.t.saved);
+      }
+    }catch(error){
+      this._pendingWrites--;
+      if(this._pendingWrites===0){
+        this._draftSettings=null;
+        await this._load();
+        this._showMessage(this.t.admin+" "+String(error));
+      }
+    }
   }
   _draw(){
     if(!this._hass)return;
@@ -127,58 +175,65 @@ class LightAwayCard extends HTMLElement {
     const settings=this._snapshot.settings;
     const flex=this._el("div",{class:"flex"});
     const presence=this._el("div",{class:"field"});
-    presence.append(this._el("label",{},t.presence));
-    const choose=this._el("select");
-    choose.append(this._el("option",{value:""},t.choose));
-    for(const id of Object.keys(this._hass.states).filter(
-      x=>/^(binary_sensor|switch|input_boolean)\./.test(x)).sort()){
-      const opt=this._el("option",{value:id},this._name(id));
-      choose.append(opt);
-    }
-    choose.value=settings.presence||"";
-    presence.append(choose);flex.append(presence);
+    const presencePicker=this._entityPicker(
+      ["binary_sensor","switch","input_boolean"],settings.presence||"",t.presence,t.choose
+    );
+    presencePicker.addEventListener("value-changed",event=>{
+      const value=event.detail?.value||null;
+      if(value===(this._draftSettings?.presence??null))return;
+      void this._save({presence:value});
+    });
+    presence.append(presencePicker);flex.append(presence);
     const invertWrap=this._el("label",{class:"toggle"});
     const invert=this._el("input",{type:"checkbox"});
     invert.checked=!!settings.invert;
+    invert.addEventListener("change",()=>void this._save({invert:invert.checked}));
     invertWrap.append(invert,document.createTextNode(t.invert));flex.append(invertWrap);
     const enableWrap=this._el("label",{class:"toggle"});
     const enable=this._el("input",{type:"checkbox"});
     enable.checked=!!settings.enabled;
-    enable.addEventListener("change",async()=>{
-      const prior=!enable.checked;
-      try{await this._hass.callWS({type:"lightaway/configure",enabled:enable.checked});this._load();}
-      catch(e){enable.checked=prior;this._message.textContent=String(e);}
-    });
+    enable.addEventListener("change",()=>void this._save({enabled:enable.checked}));
     enableWrap.append(enable,document.createTextNode(t.simulation));flex.append(enableWrap);
     card.append(flex);
     const presenceValue=this._snapshot.presence_status;
     card.append(this._el("p",{class:"message"},!settings.presence?t.presence_not_configured:(presenceValue===null?t.presence_unavailable:(presenceValue?t.active:t.away))));
     card.append(this._el("h3",{},t.select));
-    card.append(this._el("p",{},t.select_hint));
-    const list=this._el("div",{class:"list"});
-    const known=Object.keys(this._hass.states).filter(x=>x.startsWith("light.")).sort();
-    const ids=[...new Set([...known,...settings.lights])];
-    const checked=new Set(settings.lights);
-    for(const id of ids){
-      const row=this._el("label");
-      const checkbox=this._el("input",{type:"checkbox",value:id});
-      checkbox.checked=checked.has(id);
-      row.append(checkbox,document.createTextNode(this._name(id)+(known.includes(id)?"":" ("+t.unavailable+")")));
-      list.append(row);
+    card.append(this._el("p",{class:"helper"},t.searchHint));
+    const entityFields=this._el("div",{class:"entity-fields"});
+    for(const [index,light] of settings.lights.entries()){
+      const picker=this._entityPicker(["light"],light,`${t.lightField} ${index+1}`,t.choose);
+      picker.addEventListener("value-changed",event=>{
+        const replacement=event.detail?.value||null;
+        const lights=[...(this._draftSettings?.lights||settings.lights)];
+        const currentIndex=lights.indexOf(light);
+        if(currentIndex===-1)return;
+        if(replacement===light)return;
+        if(replacement&&lights.includes(replacement)){
+          picker.value=light;
+          this._showMessage(t.duplicate);
+          return;
+        }
+        if(replacement)lights[currentIndex]=replacement;
+        else lights.splice(currentIndex,1);
+        void this._save({lights});
+      });
+      entityFields.append(picker);
     }
-    card.append(list);
-    const save=this._el("button",{},t.save);
-    save.addEventListener("click",async()=>{
-      save.disabled=true;
-      try{
-        await this._hass.callWS({type:"lightaway/configure",presence:choose.value||null,
-          invert:invert.checked,lights:[...list.querySelectorAll("input:checked")].map(e=>e.value)});
-        this._message.textContent=t.saved;
-        await this._load();
-      }catch(error){this._message.textContent=t.admin+" "+error;}
-      finally{save.disabled=false;}
+    // Always provide a searchable field, never render the entire entity list.
+    const addPicker=this._entityPicker(["light"],"",t.addLight,t.choose);
+    addPicker.addEventListener("value-changed",event=>{
+      const value=event.detail?.value;
+      if(!value)return;
+      const lights=[...(this._draftSettings?.lights||settings.lights)];
+      addPicker.value="";
+      if(lights.includes(value)){
+        this._showMessage(t.duplicate);
+        return;
+      }
+      void this._save({lights:[...lights,value]});
     });
-    card.append(save);
+    entityFields.append(addPicker);
+    card.append(entityFields);
     card.append(this._el("h3",{},t.monitor));
     const table=this._el("table");
     const head=this._el("thead");const headers=this._el("tr");
