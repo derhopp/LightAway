@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "LightAway",
+        "description": "Set up LightAway. Configure presence and lights using its dashboard card."
+      }
+    },
+    "abort": {
+      "already_configured": "LightAway is already configured."
+    }
+  }
+}

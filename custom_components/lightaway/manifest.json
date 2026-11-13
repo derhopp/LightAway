@@ -1,0 +1,17 @@
+{
+  "domain": "lightaway",
+  "name": "LightAway",
+  "version": "0.1.0",
+  "config_flow": true,
+  "documentation": "https://github.com/derhopp/LightAway",
+  "issue_tracker": "https://github.com/derhopp/LightAway/issues",
+  "codeowners": [
+    "@derhopp"
+  ],
+  "dependencies": [
+    "recorder",
+    "http"
+  ],
+  "iot_class": "local_push",
+  "integration_type": "service"
+}

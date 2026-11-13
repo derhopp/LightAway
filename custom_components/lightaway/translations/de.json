@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "LightAway",
+        "description": "LightAway einrichten. Anwesenheit und Leuchten anschließend in der Dashboard-Karte konfigurieren."
+      }
+    },
+    "abort": {
+      "already_configured": "LightAway ist bereits eingerichtet."
+    }
+  }
+}
