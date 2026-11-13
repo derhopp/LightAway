@@ -9,7 +9,6 @@ from typing import Any
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_state_change_event, async_track_time_interval
 from homeassistant.helpers.storage import Store
@@ -150,6 +149,7 @@ class LightAwayRuntime:
             lights = list(self.settings["lights"])
             invert = self.settings["invert"]
             new_results: dict[str, dict[str, Any]] = {}
+            had_presence_match = False
             if not presence_entity:
                 for light in lights:
                     new_results[light] = self._error("presence_not_configured")
@@ -179,6 +179,7 @@ class LightAwayRuntime:
                             presence_cache[day] = presence
                         if not presence.valid:
                             continue
+                        had_presence_match = True
                         for light in pending:
                             try:
                                 timeline = reconstruct(
@@ -200,7 +201,9 @@ class LightAwayRuntime:
                     for light in lights:
                         new_results.setdefault(light, self._error("calculation_error"))
             for light in lights:
-                new_results.setdefault(light, self._error("no_original_day"))
+                new_results.setdefault(light, self._error(
+                    "insufficient_history" if had_presence_match else "no_original_day"
+                ))
             if generation != self._generation:
                 return
             self.results = new_results
@@ -268,6 +271,7 @@ class LightAwayRuntime:
     def snapshot(self) -> dict[str, Any]:
         """Return a JSON-safe model for the dashboard."""
         items = []
+        presence_available = self.presence() is not None
         for entity in self.settings["lights"]:
             result = self.results.get(entity, self._error("recalculating"))
             state = self.hass.states.get(entity)
@@ -276,11 +280,16 @@ class LightAwayRuntime:
                 "original_day": result.get("original_day"),
                 "actual": state.state if state else None,
                 "desired": result.get("desired"),
-                "status": result.get("status"),
+                "status": (
+                    "light_missing" if state is None else
+                    "light_unavailable" if state.state not in ("on", "off") else
+                    result.get("status")
+                ),
             })
         return {
             "settings": self.settings,
             "presence_status": self.presence(),
+            "presence_available": presence_available,
             "ready": self._ready,
             "lights": items,
         }

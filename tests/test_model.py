@@ -116,9 +116,14 @@ def test_first_valid_day_per_light():
     ok=reconstruct(days[0],BERLIN,[TimedState(start,"on")],
                    [Coverage(start,end)],lambda x:x=="on")
     no=reconstruct(days[0],BERLIN,[],[Coverage(start,end)],lambda x:x=="on")
-    presence=lambda day:ok
-    a=lambda day:ok
-    b=lambda day:no if day==days[0] else ok
+    def presence(day):
+        return ok
+
+    def a(day):
+        return ok
+
+    def b(day):
+        return no if day == days[0] else ok
     assert first_qualified(today,BERLIN,presence,a)[0] == days[0]
     assert first_qualified(today,BERLIN,presence,b)[0] == days[1]
     assert first_qualified(today,BERLIN,lambda day:no,a) is None

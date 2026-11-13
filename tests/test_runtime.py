@@ -1,12 +1,10 @@
 """Safety and persistence tests with mocked Home Assistant service calls."""
 
-from datetime import date
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from custom_components.lightaway.model import Timeline, TimedState
 from custom_components.lightaway.runtime import LightAwayRuntime
 
 
