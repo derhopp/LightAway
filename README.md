@@ -55,8 +55,11 @@ resource with that URL manually.
 ## Initial setup and dashboard configuration
 
 Integration setup creates a single LightAway instance. The dashboard card
-provides a presence entity picker, an adjacent invert switch, a list of
-light checkboxes, a global simulation switch, and a Save action.
+provides native Home Assistant searchable entity fields for one presence entity
+and any number of lights, an adjacent presence inversion switch, and a global
+simulation switch. Find entities by friendly name or entity ID. To add a light,
+use the empty search field; to remove one, clear its populated field. Settings
+are saved automatically, without a Save button.
 The status table displays the original day, actual state, computed desired
 state and diagnostic status for every light. All settings persist across
 Home Assistant restarts. The global simulation setting defaults to off.
@@ -74,7 +77,8 @@ presence blocks **all** light service calls.
 
 ## Managing light entities
 
-Select any number of `light.*` entries and Save. Each light gets a
+Search for any number of `light.*` entries using the native entity pickers.
+Each light gets a
 read-only LightAway binary sensor. Removing a light from the configuration
 removes its calculated sensor from Home Assistant's entity registry.
 A missing original light is shown as missing and is never operated.
