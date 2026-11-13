@@ -225,7 +225,7 @@ class LightAwayCard extends HTMLElement {
       const value=event.detail?.value;
       if(!value)return;
       const lights=[...(this._draftSettings?.lights||settings.lights)];
-      addPicker.value="";
+      // Keep the selection visible until the server acknowledges the save.
       if(lights.includes(value)){
         this._showMessage(t.duplicate);
         return;

@@ -18,6 +18,7 @@ def async_register(hass: HomeAssistant) -> None:
             return
         connection.send_result(msg["id"], runtime.snapshot())
 
+    @websocket_api.require_admin
     @websocket_api.websocket_command(
         {
             vol.Required("type"): "lightaway/configure",
@@ -31,7 +32,6 @@ def async_register(hass: HomeAssistant) -> None:
     )
     @websocket_api.async_response
     async def configure(hass, connection, msg):
-        connection.require_admin()
         runtime = next(iter(hass.data[DOMAIN].values()), None)
         if runtime is None:
             connection.send_error(msg["id"], "not_ready", "LightAway is not configured")
