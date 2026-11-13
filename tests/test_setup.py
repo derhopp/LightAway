@@ -9,7 +9,7 @@ from custom_components.lightaway.const import DOMAIN
 
 
 @pytest.mark.asyncio
-async def test_config_flow_and_global_switch(hass, recorder_mock):
+async def test_config_flow_and_global_switch(recorder_db_url, hass, recorder_mock):
     """A configured integration exposes its simulation switch immediately."""
     assert await async_setup_component(hass, DOMAIN, {})
     flow = await hass.config_entries.flow.async_init(
