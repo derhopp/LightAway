@@ -12,9 +12,7 @@ from custom_components.lightaway.const import DOMAIN
 async def test_config_flow_and_global_switch(recorder_db_url, hass, recorder_mock):
     """A configured integration exposes its simulation switch immediately."""
     assert await async_setup_component(hass, DOMAIN, {})
-    flow = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": "user"}
-    )
+    flow = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
     assert flow["type"] is FlowResultType.FORM
     result = await hass.config_entries.flow.async_configure(flow["flow_id"], {})
     assert result["type"] is FlowResultType.CREATE_ENTRY
