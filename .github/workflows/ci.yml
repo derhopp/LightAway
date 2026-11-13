@@ -20,6 +20,7 @@ jobs:
       - run: ruff check .
       - run: ruff format --check .
       - run: node --check custom_components/lightaway/frontend/lightaway-card.js
+      - run: node --test tests/frontend.test.cjs
   hassfest:
     runs-on: ubuntu-latest
     steps:
