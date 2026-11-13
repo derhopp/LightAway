@@ -70,15 +70,11 @@ async def test_configure_requires_actual_websocket_admin_before_saving():
 
     connection.user = SimpleNamespace(is_admin=True)
     tasks = []
-    hass.async_create_background_task.side_effect = (
-        lambda coro, _name, **_kwargs: tasks.append(coro)
+    hass.async_create_background_task.side_effect = lambda coro, _name, **_kwargs: tasks.append(
+        coro
     )
     configure(hass, connection, msg)
     assert len(tasks) == 1
     await tasks.pop()
-    runtime.async_configure.assert_awaited_once_with(
-        {"presence": "binary_sensor.holiday"}
-    )
-    connection.send_result.assert_called_once_with(
-        5, runtime.snapshot.return_value
-    )
+    runtime.async_configure.assert_awaited_once_with({"presence": "binary_sensor.holiday"})
+    connection.send_result.assert_called_once_with(5, runtime.snapshot.return_value)
