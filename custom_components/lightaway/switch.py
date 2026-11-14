@@ -48,9 +48,7 @@ class LightAwaySwitch(SwitchEntity):
         }
 
     async def async_added_to_hass(self):
-        self.async_on_remove(
-            async_dispatcher_connect(self.hass, UPDATE_SIGNAL, self._changed)
-        )
+        self.async_on_remove(async_dispatcher_connect(self.hass, UPDATE_SIGNAL, self._changed))
 
     @callback
     def _changed(self):
