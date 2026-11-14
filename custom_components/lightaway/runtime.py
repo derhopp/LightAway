@@ -228,9 +228,7 @@ class LightAwayRuntime:
             for light in lights:
                 new_results.setdefault(
                     light,
-                    self._error(
-                        "insufficient_history" if had_presence_match else "no_copy_day"
-                    ),
+                    self._error("insufficient_history" if had_presence_match else "no_copy_day"),
                 )
             if generation != self._generation:
                 return
