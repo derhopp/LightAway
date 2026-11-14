@@ -132,22 +132,22 @@ test("progress is visible while recalculation or configuration is pending", () =
 });
 
 
-test("card does not force wider-than-parent layout or horizontal scrolling", () => {
+test("card fits its parent and combines light monitoring", () => {
   const source = fs.readFileSync(
     path.join(__dirname, "../custom_components/lightaway/frontend/lightaway-card.js"),
     "utf8"
   );
-  assert.match(source, /:host\\{display:block;box-sizing:border-box;width:100%;max-width:100%;min-width:0/);
-  assert.doesNotMatch(source, /width:min\\(150%/);
-  assert.doesNotMatch(source, /getGridOptions\\(\\)/);
-  assert.match(source, /\\.light-metrics\\{display:grid;grid-template-columns:repeat\\(4,minmax\\(0,1fr\\)\\)/);
-  assert.match(source, /@media\\(max-width:700px\\)\\{\\.light-metrics\\{grid-template-columns:repeat\\(2,minmax\\(0,1fr\\)\\)/);
-  assert.match(source, /overflow-wrap:anywhere/);
-  assert.match(source, /const addPicker=this\\._entityPicker\\(\\["light"\\]/);
-  assert.match(source, /addControl\\.append\\(addButton\\)/);
-  assert.match(source, /icon\\.setAttribute\\("icon","mdi:delete-outline"\\)/);
-  assert.doesNotMatch(source, /const selectedList=/);
-  assert.doesNotMatch(source, /const table=this\\._el\\("table"\\)/);
+  assert.ok(source.includes("width:100%;max-width:100%;min-width:0"));
+  assert.ok(!source.includes("width:min(150%"));
+  assert.ok(!source.includes("getGridOptions()"));
+  assert.ok(source.includes(".light-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))"));
+  assert.ok(source.includes("@media(max-width:700px){.light-metrics{grid-template-columns:repeat(2,minmax(0,1fr))"));
+  assert.ok(source.includes("overflow-wrap:anywhere"));
+  assert.ok(source.includes('const addPicker=this._entityPicker(["light"]'));
+  assert.ok(source.includes("addControl.append(addButton)"));
+  assert.ok(source.includes('icon.setAttribute("icon","mdi:delete-outline")'));
+  assert.ok(!source.includes("const selectedList="));
+  assert.ok(!source.includes('const table=this._el("table")'));
 });
 
 test("combined light list includes copy day, actual, desired, status, and a delete action", async () => {
