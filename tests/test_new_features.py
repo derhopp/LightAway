@@ -86,14 +86,19 @@ def test_window_bounds_and_priority():
     assert len(days) == len(set(days))
 
 
-def test_recent_window_disabled_or_invalid_range():
+def test_recent_window_bounds_are_inclusive():
+    annual = shift_year(TODAY)
     with_recent = list(candidate_days(TODAY, max_weeks_away=8))
     no_recent = list(candidate_days(TODAY, max_weeks_away=8, use_recent_weeks=False))
-    invalid_range = list(candidate_days(TODAY, max_weeks_away=4, min_weeks_from_today=4))
     assert len(with_recent) == len(no_recent) + 8
-    assert len(invalid_range) == len(
-        list(candidate_days(TODAY, max_weeks_away=4, use_recent_weeks=False))
-    )
+    # Equal bounds describe exactly one recent week, not none.
+    single = list(candidate_days(TODAY, max_weeks_away=4, min_weeks_from_today=4))
+    annual_only = list(candidate_days(TODAY, max_weeks_away=4, use_recent_weeks=False))
+    assert single[-1] == TODAY - timedelta(weeks=4)
+    assert len(single) == len(annual_only) + 1
+    # An inverted range reaches no recent week at all; the runtime rejects it.
+    inverted = list(candidate_days(TODAY, max_weeks_away=2, min_weeks_from_today=5))
+    assert inverted == [day for day in annual_only if abs((day - annual).days) <= 14]
 
 
 @pytest.mark.asyncio
@@ -196,6 +201,8 @@ async def test_every_changed_option_triggers_rebuild_and_is_saved():
         ("max_weeks_away", True),
         ("use_recent_weeks", "false"),
         ("just_same_copy_day", 1),
+        ("enabled", "yes"),
+        ("invert", "no"),
     ],
 )
 async def test_invalid_settings_rejected(key, value):

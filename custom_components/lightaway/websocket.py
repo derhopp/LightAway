@@ -65,7 +65,13 @@ def async_register(hass: HomeAssistant) -> None:
             )
             if key in msg
         }
-        await runtime.async_configure(changes)
+        try:
+            await runtime.async_configure(changes)
+        except ValueError as error:
+            # Rejected input is a user error, not a broken command: report it so
+            # the card can show the reason instead of a generic websocket error.
+            connection.send_error(msg["id"], "invalid_config", str(error))
+            return
         connection.send_result(msg["id"], runtime.snapshot())
 
     websocket_api.async_register_command(hass, status)

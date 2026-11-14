@@ -1,7 +1,9 @@
 """Safety and persistence tests with mocked Home Assistant service calls."""
 
+from datetime import date, datetime
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -114,3 +116,151 @@ def test_calculated_sensor_exposes_copy_day(runtime):
     sensor = LightAwayCalculated(runtime, "light.one", "test_light")
     assert sensor.extra_state_attributes["copy_day"] == "2025-11-14"
     assert "original_day" not in sensor.extra_state_attributes
+
+
+@pytest.mark.asyncio
+async def test_unload_cancels_every_listener(runtime):
+    cancelled = []
+    runtime._callbacks = [lambda: cancelled.append("tick"), lambda: cancelled.append("bus")]
+    runtime._cancel_entities = lambda: cancelled.append("entities")
+    runtime._rebuild_task = None
+
+    await runtime.async_unload()
+
+    assert sorted(cancelled) == ["bus", "entities", "tick"]
+    assert runtime._cancel_entities is None
+    assert runtime._callbacks == []
+    assert runtime._ready is False
+    # A second unload (config entry reload, shutdown race) must stay harmless.
+    await runtime.async_unload()
+    assert sorted(cancelled) == ["bus", "entities", "tick"]
+
+
+@pytest.mark.asyncio
+async def test_unload_cancels_a_running_rebuild(runtime):
+    task = AsyncMock()
+    task.done = lambda: False
+    runtime._rebuild_task = task
+    runtime._cancel_entities = None
+    runtime._callbacks = []
+    await runtime.async_unload()
+    task.cancel.assert_called_once()
+    assert runtime._rebuild_task is None
+
+
+@pytest.mark.asyncio
+async def test_configure_rejects_an_inverted_week_window(runtime):
+    runtime.store.async_save = AsyncMock()
+    runtime.request_rebuild = lambda: None
+    with pytest.raises(ValueError, match="max_weeks_away"):
+        await runtime.async_configure({"min_weeks_from_today": 6, "max_weeks_away": 2})
+    runtime.store.async_save.assert_not_awaited()
+    assert runtime.settings["min_weeks_from_today"] == DEFAULT_OPTIONS["min_weeks_from_today"]
+
+
+@pytest.mark.asyncio
+async def test_configure_accepts_equal_week_bounds(runtime):
+    runtime.store.async_save = AsyncMock()
+    runtime.request_rebuild = lambda: None
+    await runtime.async_configure({"min_weeks_from_today": 4, "max_weeks_away": 4})
+    assert runtime.settings["min_weeks_from_today"] == 4
+    assert runtime.settings["max_weeks_away"] == 4
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("changes", "message"),
+    [
+        ({"lights": ["switch.a"]}, "lights"),
+        ({"lights": "light.one"}, "lights"),
+        ({"presence": "sensor.temperature"}, "presence"),
+        ({"presence": "binary_sensor"}, "presence"),
+    ],
+)
+async def test_configure_rejects_foreign_entities(runtime, changes, message):
+    runtime.store.async_save = AsyncMock()
+    runtime.request_rebuild = lambda: None
+    with pytest.raises(ValueError, match=message):
+        await runtime.async_configure(changes)
+    runtime.store.async_save.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_load_repairs_an_inverted_week_window(monkeypatch):
+    hass = MagicMock()
+    hass.config.time_zone = "Europe/Berlin"
+    instance = LightAwayRuntime(hass, "repair")
+    instance.store.async_load = AsyncMock(
+        return_value={**DEFAULT_OPTIONS, "min_weeks_from_today": 8, "max_weeks_away": 2}
+    )
+    instance.request_rebuild = lambda: None
+    monkeypatch.setattr(
+        "custom_components.lightaway.runtime.async_track_time_interval", lambda *args: lambda: None
+    )
+    monkeypatch.setattr(instance, "_track_entities", lambda: None)
+
+    await instance.async_load()
+
+    assert instance.settings["min_weeks_from_today"] == DEFAULT_OPTIONS["min_weeks_from_today"]
+    assert instance.settings["max_weeks_away"] == DEFAULT_OPTIONS["max_weeks_away"]
+    assert instance.diagnostics()["repaired_settings"] == [
+        "min_weeks_from_today",
+        "max_weeks_away",
+    ]
+
+
+def test_tick_rebuilds_after_a_time_zone_change(runtime):
+    runtime.request_rebuild = MagicMock()
+    runtime.request_update = MagicMock()
+    runtime._context = (date(2026, 11, 13), "Europe/Berlin")
+    runtime.hass.config.time_zone = "Europe/Warsaw"
+    with patch(
+        "custom_components.lightaway.runtime.dt_util.now",
+        return_value=datetime(2026, 11, 13, 12, tzinfo=ZoneInfo("Europe/Warsaw")),
+    ):
+        runtime._tick(None)
+    runtime.request_rebuild.assert_called_once()
+    runtime.request_update.assert_not_called()
+
+
+def test_tick_only_updates_when_the_context_matches(runtime):
+    runtime.request_rebuild = MagicMock()
+    runtime.request_update = MagicMock()
+    runtime.hass.config.time_zone = "Europe/Berlin"
+    runtime._context = (date(2026, 11, 13), "Europe/Berlin")
+    with patch(
+        "custom_components.lightaway.runtime.dt_util.now",
+        return_value=datetime(2026, 11, 13, 12, tzinfo=ZoneInfo("Europe/Berlin")),
+    ):
+        runtime._tick(None)
+    runtime.request_update.assert_called_once()
+    runtime.request_rebuild.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_update_never_replays_a_stale_context(runtime):
+    runtime.request_rebuild = MagicMock()
+    runtime._context = (date(2026, 11, 12), "Europe/Berlin")
+    with patch(
+        "custom_components.lightaway.runtime.dt_util.now",
+        return_value=datetime(2026, 11, 13, 12, tzinfo=ZoneInfo("Europe/Berlin")),
+    ):
+        await runtime.async_update()
+    runtime.request_rebuild.assert_called_once()
+    runtime.hass.services.async_call.assert_not_awaited()
+
+
+def test_registry_rename_migrates_the_selection(runtime):
+    runtime.store.async_save = AsyncMock()
+    runtime.hass.async_create_task = MagicMock()
+    runtime._track_entities = MagicMock()
+    runtime.request_rebuild = MagicMock()
+    runtime.settings["lights"] = ["light.one"]
+    runtime._registry_changed(
+        SimpleNamespace(
+            data={"action": "update", "old_entity_id": "light.one", "entity_id": "light.desk"}
+        )
+    )
+    assert runtime.settings["lights"] == ["light.desk"]
+    runtime._track_entities.assert_called_once()
+    runtime.request_rebuild.assert_called_once()

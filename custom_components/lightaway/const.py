@@ -5,6 +5,8 @@ PLATFORMS = ["binary_sensor", "switch"]
 STORE_VERSION = 1
 STORE_KEY = "lightaway.settings"
 UPDATE_SIGNAL = "lightaway_update"
+PRESENCE_DOMAINS = frozenset({"binary_sensor", "switch", "input_boolean"})
+BOOLEAN_OPTIONS = ("enabled", "invert", "use_recent_weeks", "just_same_copy_day")
 DEFAULT_OPTIONS = {
     "presence": None,
     "invert": False,

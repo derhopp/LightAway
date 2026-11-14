@@ -79,3 +79,35 @@ async def test_configure_requires_actual_websocket_admin_before_saving():
     await tasks.pop()
     runtime.async_configure.assert_awaited_once_with({"presence": "binary_sensor.holiday"})
     connection.send_result.assert_called_once_with(5, runtime.snapshot.return_value)
+
+
+@pytest.mark.asyncio
+async def test_rejected_configuration_is_reported_to_the_card():
+    """An invalid range must surface as a user error, not a connection failure."""
+    runtime = MagicMock()
+    runtime.async_configure = AsyncMock(
+        side_effect=ValueError("min_weeks_from_today must not be greater than max_weeks_away")
+    )
+    hass = MagicMock()
+    hass.data = {DOMAIN: {"instance": runtime}}
+    connection = MagicMock()
+    connection.user = SimpleNamespace(is_admin=True)
+    with patch(
+        "custom_components.lightaway.websocket.websocket_api.async_register_command"
+    ) as add_command:
+        async_register(hass)
+    configure = add_command.call_args_list[1].args[1]
+    hass.async_create_background_task.side_effect = lambda coro, _name, **_kwargs: coro
+    tasks = []
+
+    def schedule(coro, _name, **kwargs):
+        tasks.append(coro)
+
+    hass.async_create_background_task.side_effect = schedule
+    configure(hass, connection, {"id": 9, "type": "lightaway/configure", "max_weeks_away": 2})
+    await tasks.pop()
+
+    connection.send_error.assert_called_once_with(
+        9, "invalid_config", "min_weeks_from_today must not be greater than max_weeks_away"
+    )
+    connection.send_result.assert_not_called()

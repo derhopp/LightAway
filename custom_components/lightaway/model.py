@@ -83,7 +83,8 @@ def candidate_days(
 
     Priority 1 is the closest matching weekdays in the inclusive calendar
     interval [one year ago - max weeks, one year ago + max weeks].
-    Priority 2 is recent weekdays 1..N weeks ago, starting with the closest.
+    Priority 2 is recent weekdays min_weeks_from_today..max_weeks_away weeks
+    ago, starting with the closest, so equal bounds select exactly one week.
     Only *completed past days* are considered. Duplicate dates are skipped.
     """
     ideal = shift_year(today)
@@ -102,7 +103,7 @@ def candidate_days(
         seen.add(candidate)
         yield candidate
 
-    if use_recent_weeks and max_weeks_away > min_weeks_from_today:
+    if use_recent_weeks and min_weeks_from_today <= max_weeks_away:
         for weeks_ago in range(min_weeks_from_today, max_weeks_away + 1):
             candidate = today - timedelta(weeks=weeks_ago)
             if candidate not in seen:
