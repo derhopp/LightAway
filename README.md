@@ -60,7 +60,9 @@ and the four week-window and copy-day selection options. Find entities by friend
 use the empty search field; to remove one, clear its populated field. Settings
 are saved automatically, without a Save button.
 The status table displays the copy day, actual state, computed desired
-state and diagnostic status for every light. Each calculated binary sensor
+state and diagnostic status for every light. A live progress indicator shows
+when the integration is recalculating copy days, including after settings
+changes or a daily refresh. Each calculated binary sensor
 exposes the selected copy date as its `copy_day` attribute. All settings persist across
 Home Assistant restarts. The global simulation setting defaults to off.
 

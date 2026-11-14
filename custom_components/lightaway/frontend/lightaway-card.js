@@ -22,7 +22,8 @@ const translations = {
     presence_not_configured: "Presence entity not configured",
     presence_unavailable: "Presence entity unavailable",
     calculation_error: "Calculation error", switch_error: "Light switching failed",
-    recalculating: "Recalculating", select_hint: "Choose any number of lights",
+    recalculating: "Recalculating", updating: "Updating copy days…",
+    select_hint: "Choose any number of lights",
     config: "Configuration", monitor: "Monitoring",
     admin: "Configuration changes require administrator permissions.",
   },
@@ -48,7 +49,8 @@ const translations = {
     presence_not_configured: "Anwesenheits-Entität nicht konfiguriert",
     presence_unavailable: "Anwesenheits-Entität nicht verfügbar",
     calculation_error: "Berechnungsfehler", switch_error: "Lichtschaltung fehlgeschlagen",
-    recalculating: "Neuberechnung", select_hint: "Beliebig viele Leuchten auswählen",
+    recalculating: "Neuberechnung", updating: "Kopiertage werden aktualisiert…",
+    select_hint: "Beliebig viele Leuchten auswählen",
     config: "Konfiguration", monitor: "Überwachung",
     admin: "Konfigurationsänderungen erfordern Administratorrechte.",
   }
@@ -72,6 +74,11 @@ th,td{border-bottom:1px solid var(--divider-color);padding:10px 6px;text-align:l
 th{font-size:.82rem;color:var(--secondary-text-color)}
 .status{font-size:.85rem}
 .message{margin-top:12px;font-size:.9rem;color:var(--secondary-text-color)}
+.update-progress{display:flex;align-items:center;gap:9px;font-size:.92rem;font-weight:500;margin:10px 0;color:var(--primary-text-color)}
+.update-progress[hidden]{display:none}
+.update-spinner{display:inline-block;width:15px;height:15px;border:2px solid var(--divider-color);border-top-color:var(--primary-color);border-radius:50%;animation:lightaway-spin .9s linear infinite;flex-shrink:0}
+@keyframes lightaway-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.update-spinner{animation:none}}
 @media(max-width:650px){
 thead{display:none}
 tr{display:block;border-bottom:1px solid var(--divider-color);padding:8px 0}
@@ -86,19 +93,39 @@ class LightAwayCard extends HTMLElement {
     this._hass = hass;
     if(first) this._load();
     else if(this._snapshot) this._refreshStates();
+    if(this.isConnected) void this._subscribeUpdates();
   }
   getCardSize(){return 5;}
   connectedCallback(){
     if (!this._timer) this._timer = setInterval(() => this._load(true), 15000);
+    void this._subscribeUpdates();
   }
   disconnectedCallback(){
     clearInterval(this._timer);
     this._timer=null;
+    this._unsubscribeUpdates?.();
+    this._unsubscribeUpdates=null;
+  }
+  async _subscribeUpdates(){
+    if(this._unsubscribeUpdates||this._subscribingUpdates
+      ||!this._hass?.connection?.subscribeEvents)return;
+    this._subscribingUpdates=true;
+    try{
+      const unsubscribe=await this._hass.connection.subscribeEvents(
+        ()=>void this._load(true), "lightaway_updated"
+      );
+      if(this.isConnected)this._unsubscribeUpdates=unsubscribe;
+      else unsubscribe();
+    }catch(error){
+      // Polling remains available if event subscriptions are not permitted.
+    }finally{
+      this._subscribingUpdates=false;
+    }
   }
   get t(){return translations[(this._hass?.language || "").toLowerCase().startsWith("de")?"de":"en"];}
   async _load(silent=false){
     if(!this._hass) return;
-    if(this._loading) return;
+    if(this._loading){this._refreshRequested=true;return;}
     this._loading=true;
     try{
       const data=await this._hass.callWS({type:"lightaway/status"});
@@ -112,7 +139,13 @@ class LightAwayCard extends HTMLElement {
       }else this._refreshStates();
     }catch(error){
       if(!silent){this._error=String(error);this._draw();}
-    }finally{this._loading=false;}
+    }finally{
+      this._loading=false;
+      if(this._refreshRequested){
+        this._refreshRequested=false;
+        void this._load(true);
+      }
+    }
   }
   _el(tag,attrs={},value){
     const el=document.createElement(tag);
@@ -134,6 +167,12 @@ class LightAwayCard extends HTMLElement {
   }
   _showMessage(message){
     if(this._message)this._message.textContent=message;
+  }
+  _updateProgress(){
+    if(!this._progress||!this._snapshot)return;
+    const busy=Boolean(this._pendingWrites)||!this._snapshot.ready;
+    this._progress.hidden=!busy;
+    this._progressText.textContent=busy?this.t.updating:"";
   }
   async _save(changes){
     // Serialize writes to avoid losing rapid edits to different fields.
@@ -279,6 +318,14 @@ class LightAwayCard extends HTMLElement {
     entityFields.append(addPicker);
     card.append(entityFields);
     card.append(this._el("h3",{},t.monitor));
+    this._progress=this._el("div",{class:"update-progress"});
+    this._progress.setAttribute("role","status");
+    this._progress.setAttribute("aria-live","polite");
+    const spinner=this._el("span",{class:"update-spinner"});
+    spinner.setAttribute("aria-hidden","true");
+    this._progressText=this._el("span");
+    this._progress.append(spinner,this._progressText);
+    card.append(this._progress);
     const table=this._el("table");
     const head=this._el("thead");const headers=this._el("tr");
     for(const label of [t.source,t.date,t.actual,t.desired,t.status])headers.append(this._el("th",{},label));
@@ -294,6 +341,7 @@ class LightAwayCard extends HTMLElement {
   _name(id){return this._hass?.states?.[id]?.attributes?.friendly_name||id;}
   _refreshStates(){
     if(!this._tbody||!this._snapshot)return;
+    this._updateProgress();
     const t=this.t;this._tbody.replaceChildren();
     for(const item of this._snapshot.lights){
       const row=this._el("tr");
@@ -302,8 +350,9 @@ class LightAwayCard extends HTMLElement {
         this._name(item.entity_id),
         item.copy_day||"—",
         state?.state==="on"?t.on:(state?.state==="off"?t.off:t.unavailable),
-        item.desired==null?t.unavailable:t[item.desired],
-        t[item.status]||item.status||t.invalid,
+        !this._snapshot.ready||item.status==="recalculating"?t.recalculating:
+          item.desired==null?t.unavailable:t[item.desired],
+        !this._snapshot.ready?t.recalculating:(t[item.status]||item.status||t.invalid),
       ];
       [t.source,t.date,t.actual,t.desired,t.status].forEach((label,i)=>{
         const td=this._el("td",{class:i===4?"status":""},cells[i]);

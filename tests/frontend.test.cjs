@@ -110,3 +110,23 @@ test("week controls use numeric and boolean inputs with autosave", () => {
   assert.ok(source.includes("Number.isInteger"));
   assert.ok(source.includes("this._save({[key]:number})"));
 });
+
+test("progress is visible while recalculation or configuration is pending", () => {
+  const card = new Card();
+  const progress = {hidden: true};
+  const text = {textContent: ""};
+  card._progress = progress;
+  card._progressText = text;
+  card._snapshot = {ready: false, settings: {}, lights: []};
+  card._updateProgress();
+  assert.equal(progress.hidden, false);
+  assert.equal(text.textContent, card.t.updating);
+
+  card._snapshot.ready = true;
+  card._updateProgress();
+  assert.equal(progress.hidden, true);
+
+  card._pendingWrites = 1;
+  card._updateProgress();
+  assert.equal(progress.hidden, false);
+});
