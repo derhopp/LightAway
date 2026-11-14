@@ -85,7 +85,7 @@ removes its calculated sensor from Home Assistant's entity registry.
 A missing original light is shown as missing and is never operated.
 Registry renames are tracked to preserve existing selections where possible.
 
-## Original-day selection
+## Copy-day selection
 
 For each light separately, the ideal reference date is today's local date
 minus one calendar year (Feb 29 maps to Feb 28). The first candidate is the

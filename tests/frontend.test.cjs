@@ -81,7 +81,6 @@ test("settings changes persist without a save button and serialize rapidly", asy
   assert.equal(card._pendingWrites, 0);
 });
 
-
 test("copy-day label is localized consistently in the card", () => {
   const source = fs.readFileSync(
     path.join(__dirname, "../custom_components/lightaway/frontend/lightaway-card.js"),
@@ -91,6 +90,6 @@ test("copy-day label is localized consistently in the card", () => {
   assert.match(source, /date: "Kopiertag"/);
   assert.match(source, /no_copy_day: "No suitable copy day"/);
   assert.match(source, /no_copy_day: "Kein geeigneter Kopiertag"/);
-  assert.match(source, /item\\.copy_day/);
+  assert.match(source, /item\.copy_day/);
   assert.doesNotMatch(source, /Original.day|original_day/);
 });
