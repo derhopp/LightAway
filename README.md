@@ -20,7 +20,7 @@ on matching weekdays near last year, with an optional recent-weeks fallback.
 - Lovelace dashboard configuration and monitoring, desktop and mobile
 - English and German user interface, automatically selected by user language
 - No fixed limit on configured lights
-- No releases, tags or automated publishing workflows
+- Initial GitHub release v0.1.0; no automatic future releases
 
 ## Requirements
 
@@ -38,7 +38,7 @@ Recorder API and SQLAlchemy abstractions, not direct SQLite connections.
 
 1. In HACS, open the integration repositories list and add
    `https://github.com/derhopp/LightAway` as a **custom integration repository**.
-2. Install LightAway from the `main` branch. Releases are not required.
+2. Install the latest published LightAway release (initially `v0.1.0`). The `main` branch is for development.
 3. Restart Home Assistant.
 4. Open **Settings → Devices & services → Add integration → LightAway**.
 5. In your dashboard, add a **Manual** card:
