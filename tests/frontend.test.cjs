@@ -132,22 +132,83 @@ test("progress is visible while recalculation or configuration is pending", () =
 });
 
 
-test("wide card prefers a full section and exposes one add picker with a button", () => {
-  const card = new Card();
-  const grid = card.getGridOptions();
-  assert.equal(grid.columns, "full");
+test("card does not force wider-than-parent layout or horizontal scrolling", () => {
   const source = fs.readFileSync(
     path.join(__dirname, "../custom_components/lightaway/frontend/lightaway-card.js"),
     "utf8"
   );
-  assert.match(source, /width:min\(150%,calc\(100vw - 40px\)\)/);
-  assert.match(source, /const addPicker=this\._entityPicker\(\["light"\]/);
-  assert.match(source, /addPicker\.addEventListener\("value-changed"/);
-  assert.match(source, /addButton\.addEventListener\("click"/);
-  assert.match(source, /addControl\.append\(addButton\)/);
-  assert.match(source, /icon\.setAttribute\("icon","mdi:delete-outline"\)/);
-  assert.match(source, /remove\.addEventListener\("click"/);
-  assert.doesNotMatch(source, /const picker=this\._entityPicker\(\["light"\],light/);
+  assert.match(source, /:host\\{display:block;box-sizing:border-box;width:100%;max-width:100%;min-width:0/);
+  assert.doesNotMatch(source, /width:min\\(150%/);
+  assert.doesNotMatch(source, /getGridOptions\\(\\)/);
+  assert.match(source, /\\.light-metrics\\{display:grid;grid-template-columns:repeat\\(4,minmax\\(0,1fr\\)\\)/);
+  assert.match(source, /@media\\(max-width:700px\\)\\{\\.light-metrics\\{grid-template-columns:repeat\\(2,minmax\\(0,1fr\\)\\)/);
+  assert.match(source, /overflow-wrap:anywhere/);
+  assert.match(source, /const addPicker=this\\._entityPicker\\(\\["light"\\]/);
+  assert.match(source, /addControl\\.append\\(addButton\\)/);
+  assert.match(source, /icon\\.setAttribute\\("icon","mdi:delete-outline"\\)/);
+  assert.doesNotMatch(source, /const selectedList=/);
+  assert.doesNotMatch(source, /const table=this\\._el\\("table"\\)/);
+});
+
+test("combined light list includes copy day, actual, desired, status, and a delete action", async () => {
+  const card = new Card();
+  const node = (tag, attrs = {}, value) => ({
+    tagName: tag, attrs: {...attrs}, textContent: value, children: [],
+    handlers: {}, disabled: false,
+    setAttribute(k, v){this.attrs[k]=v;},
+    addEventListener(name, fn){this.handlers[name]=fn;},
+    append(...children){this.children.push(...children);},
+    replaceChildren(...children){this.children=[...children];}
+  });
+  card._el=node;
+  card._lightList=node("ul");
+  card._hass={states:{
+    "light.a": {state:"on",attributes:{friendly_name:"Kitchen Main"}},
+    "light.b": {state:"off",attributes:{friendly_name:"Study"}}
+  }};
+  card._snapshot={
+    ready:true,
+    settings:{lights:["light.a","light.b"]},
+    lights:[
+      {entity_id:"light.a",copy_day:"2026-11-10",desired:"off",status:"ok"},
+      {entity_id:"light.b",copy_day:"2026-11-11",desired:"on",status:"ok"}
+    ]
+  };
+  let saved=null;
+  card._save=async changes=>{saved=changes;};
+  card._refreshStates();
+  assert.equal(card._lightList.children.length,2);
+  const first=card._lightList.children[0];
+  assert.equal(first.children[0].children[0].children[0].textContent,"Kitchen Main");
+  assert.equal(first.children[0].children[0].children[1].textContent,"light.a");
+  const metrics=first.children[1].children.map(x=>x.children.map(y=>y.textContent));
+  assert.deepEqual(metrics,[
+    [card.t.date,"2026-11-10"],[card.t.actual,card.t.on],
+    [card.t.desired,card.t.off],[card.t.status,card.t.ok]
+  ]);
+  const remove=first.children[0].children[1];
+  assert.equal(remove.attrs["aria-label"],card.t.remove+": Kitchen Main");
+  assert.equal(remove.children[0].attrs.icon,"mdi:delete-outline");
+  remove.handlers.click();
+  assert.deepEqual(saved,{lights:["light.b"]});
+  assert.equal(remove.disabled,true);
+});
+
+test("combined light list keeps stale calculations hidden during rebuild", () => {
+  const card=new Card();
+  const node=(tag,attrs={},value)=>({
+    tagName:tag,textContent:value,children:[],
+    setAttribute(){},addEventListener(){},append(...xs){this.children.push(...xs);},
+    replaceChildren(...xs){this.children=[...xs];}
+  });
+  card._el=node;
+  card._lightList=node("ul");
+  card._hass={states:{"light.a":{state:"on",attributes:{}}}};
+  card._snapshot={ready:false,settings:{lights:["light.a"]},
+    lights:[{entity_id:"light.a",copy_day:"2025-01-01",desired:"off",status:"ok"}]};
+  card._refreshStates();
+  const values=card._lightList.children[0].children[1].children.map(x=>x.children[1].textContent);
+  assert.deepEqual(values,["—",card.t.on,card.t.recalculating,card.t.recalculating]);
 });
 
 test("add picker only changes candidate; clicking Add persists it", async () => {
@@ -157,7 +218,7 @@ test("add picker only changes candidate; clicking Add persists it", async () => 
   );
   const choice = source.slice(
     source.indexOf('const addPicker=this._entityPicker(["light"]'),
-    source.indexOf('const selectedList=this._el(')
+    source.indexOf('this._lightList=this._el(')
   );
   assert.match(choice, /this\._lightCandidate=event\.detail\?\.value\|\|""/);
   assert.match(choice, /void this\._save\(\{lights:\[\.\.\.lights,value\]\}\)/);

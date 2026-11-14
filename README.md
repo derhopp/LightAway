@@ -59,18 +59,20 @@ Integration setup creates a single LightAway instance. The dashboard card
 provides searchable entity fields, presence inversion, a simulation switch,
 and the four week-window and copy-day selection options. Find entities by friendly
 name or entity ID. To add a light, choose it in the single light entity picker
-and press **Add** below the picker. Selected lights appear in a separate list
-with a trash icon for removal. Both operations are saved automatically.
+and press **Add** below the picker. Each selected light appears once in a
+combined **Lights & monitoring** list with its entity name/ID, copy day,
+actual state, calculated desired state, diagnostic status, and trash icon
+for removal. Both Add and Delete persist automatically.
 Persistent toggle controls (simulation, invert presence, recent weeks, same
 copy day) are also available as dedicated LightAway switch entities for
 automations. Add/Delete are momentary UI actions rather than switch entities.
 
-The card is designed for a wider desktop layout (up to 150% of a normal card
-column) with a mobile-friendly full-width layout. In the Home Assistant
-**Sections** dashboard, it requests the full section width. In **Masonry**
-dashboards, column width is controlled by Home Assistant; adjust the
-dashboard layout if the card would overlap an adjacent column.
-The status table displays the copy day, actual state, computed desired
+The card fits the available dashboard column width without extending outside
+it or requiring horizontal scrolling. Each light is displayed as a responsive
+row: on desktop four monitoring metrics appear side by side; on narrower
+screens they wrap into two columns (or one on very small screens). Dashboard
+column sizing remains controlled by Home Assistant.
+The combined list displays the copy day, actual state, computed desired
 state and diagnostic status for every light. A live progress indicator shows
 when the integration is recalculating copy days, including after settings
 changes or a daily refresh. Each calculated binary sensor

@@ -10,6 +10,7 @@ const translations = {
     status: "Status", saved: "Configuration saved automatically",
     choose: "Search by name or entity ID", empty: "No lights selected",
     select: "Selected lights", addLight: "Add a light",
+    combinedList: "Selected lights & monitoring",
     lightField: "Light", duplicate: "This light is already selected",
     add: "Add light", remove: "Remove light", removeLabel: "Remove",
     searchHint: "Search by name or entity ID, then use Add. Remove lights with the trash icon; changes are saved automatically.",
@@ -38,6 +39,7 @@ const translations = {
     status: "Status", saved: "Konfiguration automatisch gespeichert",
     choose: "Nach Name oder Entity-ID suchen", empty: "Keine Leuchten ausgewählt",
     select: "Ausgewählte Leuchten", addLight: "Leuchte hinzufügen",
+    combinedList: "Leuchten & Überwachung",
     lightField: "Leuchte", duplicate: "Diese Leuchte ist bereits ausgewählt",
     add: "Hinzufügen", remove: "Leuchte entfernen", removeLabel: "Entfernen",
     searchHint: "Nach Name oder Entity-ID suchen und dann hinzufügen. Leuchten über die Mülltonne entfernen. Änderungen werden automatisch gespeichert.",
@@ -58,52 +60,45 @@ const translations = {
   }
 };
 const css = `
-:host{display:block;color:var(--primary-text-color);box-sizing:border-box;width:100%}
-@media(min-width:900px){:host{width:min(150%,calc(100vw - 40px))}}
-ha-card{padding:16px;overflow:hidden}
+:host{display:block;box-sizing:border-box;width:100%;max-width:100%;min-width:0;color:var(--primary-text-color)}
+*,*::before,*::after{box-sizing:border-box}
+ha-card{display:block;width:100%;max-width:100%;min-width:0;padding:16px;overflow:hidden}
 h2{font-size:1.2rem;margin:0 0 12px}
 h3{font-size:1rem;margin:18px 0 8px}
-.flex{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start}
-.field{min-width:215px;flex:1}
+.flex{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;min-width:0}
+.field{min-width:0;flex:1 1 170px;max-width:100%}
 label{display:block;font-size:.875rem;margin-bottom:5px}
-ha-entity-picker{display:block;width:100%;min-width:0}
-input[type=number]{display:block;box-sizing:border-box;width:100%;min-height:40px;background:var(--card-background-color);border:1px solid var(--divider-color);border-radius:6px;padding:8px;color:var(--primary-text-color);font:inherit}
-.entity-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:14px;align-items:start}
-.picker-control{display:flex;flex-direction:column;align-items:stretch;gap:10px;max-width:520px}
+ha-entity-picker{display:block;width:100%;max-width:100%;min-width:0}
+input[type=number]{display:block;width:100%;min-width:0;min-height:40px;background:var(--card-background-color);border:1px solid var(--divider-color);border-radius:6px;padding:8px;color:var(--primary-text-color);font:inherit}
+.picker-control{display:flex;flex-direction:column;align-items:stretch;gap:10px;width:100%;max-width:520px;min-width:0}
 .picker-action{align-self:flex-start;min-width:125px;border:0;background:var(--primary-color);color:var(--text-primary-color,#fff);border-radius:8px;min-height:38px;padding:8px 18px;cursor:pointer;font:inherit;font-weight:600}
 .picker-action:disabled{opacity:.45;cursor:default}
-.selected-lights{display:flex;flex-direction:column;gap:5px;margin:12px 0 0;padding:0;list-style:none}
-.selected-light{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 12px;border:1px solid var(--divider-color);border-radius:8px;min-width:0}
-.light-details{display:flex;flex-direction:column;gap:2px;min-width:0}
-.light-name{overflow-wrap:anywhere;font-size:.94rem;font-weight:500}
-.light-id{color:var(--secondary-text-color);overflow-wrap:anywhere;font-size:.79rem}
-.delete-button{display:inline-flex;align-items:center;justify-content:center;min-width:38px;min-height:38px;flex-shrink:0;color:var(--error-color,var(--primary-text-color));background:transparent;border:0;border-radius:8px;cursor:pointer}
-.delete-button:hover,.delete-button:focus-visible{background:var(--secondary-background-color)}
-.delete-button svg{height:20px;width:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.switch-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:14px;margin:14px 0}
-
+.switch-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:10px;margin:14px 0;min-width:0}
 .helper{color:var(--secondary-text-color);font-size:.85rem;line-height:1.4}
 label.toggle{display:flex;gap:8px;align-items:center;cursor:pointer;min-height:36px}
-input[type=checkbox]{accent-color:var(--primary-color);width:18px;height:18px}
-table{border-collapse:collapse;width:100%}
-th,td{border-bottom:1px solid var(--divider-color);padding:10px 6px;text-align:left;overflow-wrap:anywhere}
-th{font-size:.82rem;color:var(--secondary-text-color)}
-.status{font-size:.85rem}
-.message{margin-top:12px;font-size:.9rem;color:var(--secondary-text-color)}
+input[type=checkbox]{accent-color:var(--primary-color);width:18px;height:18px;flex-shrink:0}
+.light-list{list-style:none;display:flex;flex-direction:column;gap:9px;margin:12px 0 0;padding:0;min-width:0;max-width:100%}
+.light-item{border:1px solid var(--divider-color);border-radius:9px;padding:12px;min-width:0;max-width:100%}
+.light-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;min-width:0}
+.light-details{display:flex;flex:1;flex-direction:column;gap:3px;min-width:0}
+.light-name{font-size:.94rem;font-weight:600;overflow-wrap:anywhere}
+.light-id{font-size:.8rem;color:var(--secondary-text-color);overflow-wrap:anywhere}
+.delete-button{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;flex:0 0 38px;color:var(--error-color,var(--primary-text-color));background:transparent;border:0;border-radius:8px;cursor:pointer}
+.delete-button:hover,.delete-button:focus-visible{background:var(--secondary-background-color)}
+.delete-button:disabled{opacity:.4;cursor:default}
+.delete-button ha-icon{--mdc-icon-size:20px}
+.light-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:12px;min-width:0}
+.light-metric{display:flex;flex-direction:column;gap:4px;min-width:0}
+.metric-label{font-size:.75rem;color:var(--secondary-text-color);overflow-wrap:anywhere}
+.metric-value{font-size:.9rem;overflow-wrap:anywhere}
+.message{margin-top:12px;font-size:.9rem;color:var(--secondary-text-color);overflow-wrap:anywhere}
 .update-progress{display:flex;align-items:center;gap:9px;font-size:.92rem;font-weight:500;margin:10px 0;color:var(--primary-text-color)}
 .update-progress[hidden]{display:none}
 .update-spinner{display:inline-block;width:15px;height:15px;border:2px solid var(--divider-color);border-top-color:var(--primary-color);border-radius:50%;animation:lightaway-spin .9s linear infinite;flex-shrink:0}
 @keyframes lightaway-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.update-spinner{animation:none}}
-@media(max-width:650px){
-:host{width:100%;max-width:100%}
-.picker-control{max-width:none}
-
-thead{display:none}
-tr{display:block;border-bottom:1px solid var(--divider-color);padding:8px 0}
-td{display:flex;border:0;padding:4px 0;gap:12px}
-td::before{content:attr(data-label);font-weight:600;min-width:100px;max-width:38%}
-}
+@media(max-width:700px){.light-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:340px){.light-metrics{grid-template-columns:minmax(0,1fr)}}
 `;
 class LightAwayCard extends HTMLElement {
   setConfig(config) { this._config = config; this._draw(); }
@@ -115,7 +110,6 @@ class LightAwayCard extends HTMLElement {
     if(this.isConnected) void this._subscribeUpdates();
   }
   getCardSize(){return 6;}
-  getGridOptions(){return {columns:"full",min_columns:6};}
   connectedCallback(){
     if (!this._timer) this._timer = setInterval(() => this._load(true), 15000);
     void this._subscribeUpdates();
@@ -292,7 +286,7 @@ class LightAwayCard extends HTMLElement {
     card.append(ranges);
     const presenceValue=this._snapshot.presence_status;
     card.append(this._el("p",{class:"message"},!settings.presence?t.presence_not_configured:(presenceValue===null?t.presence_unavailable:(presenceValue?t.active:t.away))));
-    card.append(this._el("h3",{},t.select));
+    card.append(this._el("h3",{},t.addLight));
     card.append(this._el("p",{class:"helper"},t.searchHint));
     const addControl=this._el("div",{class:"picker-control"});
     const addPicker=this._entityPicker(["light"],"",t.addLight,t.choose);
@@ -317,32 +311,7 @@ class LightAwayCard extends HTMLElement {
     });
     addControl.append(addButton);
     card.append(addControl);
-    const selectedList=this._el("ul",{class:"selected-lights"});
-    for(const light of settings.lights){
-      const item=this._el("li",{class:"selected-light"});
-      const details=this._el("div",{class:"light-details"});
-      details.append(this._el("span",{class:"light-name"},this._name(light)));
-      details.append(this._el("span",{class:"light-id"},light));
-      const remove=this._el("button",{class:"delete-button",type:"button"});
-      remove.setAttribute("aria-label",t.remove+": "+this._name(light));
-      remove.setAttribute("title",t.removeLabel);
-      const icon=this._el("ha-icon");
-      icon.setAttribute("icon","mdi:delete-outline");
-      remove.append(icon);
-      remove.addEventListener("click",()=>{
-        if(this._pendingWrites)return;
-        const lights=(this._draftSettings?.lights||settings.lights).filter(id=>id!==light);
-        remove.disabled=true;
-        void this._save({lights});
-      });
-      item.append(details,remove);
-      selectedList.append(item);
-    }
-    if(!settings.lights.length){
-      selectedList.append(this._el("li",{class:"helper"},t.empty));
-    }
-    card.append(selectedList);
-    card.append(this._el("h3",{},t.monitor));
+    card.append(this._el("h3",{},t.combinedList));
     this._progress=this._el("div",{class:"update-progress"});
     this._progress.setAttribute("role","status");
     this._progress.setAttribute("aria-live","polite");
@@ -351,12 +320,8 @@ class LightAwayCard extends HTMLElement {
     this._progressText=this._el("span");
     this._progress.append(spinner,this._progressText);
     card.append(this._progress);
-    const table=this._el("table");
-    const head=this._el("thead");const headers=this._el("tr");
-    for(const label of [t.source,t.date,t.actual,t.desired,t.status])headers.append(this._el("th",{},label));
-    head.append(headers);table.append(head);
-    this._tbody=this._el("tbody");table.append(this._tbody);
-    card.append(table);
+    this._lightList=this._el("ul",{class:"light-list"});
+    card.append(this._lightList);
     this._message=this._el("p",{class:"message"});
     card.append(this._message);
     this._shadow.append(card);
@@ -365,28 +330,54 @@ class LightAwayCard extends HTMLElement {
   }
   _name(id){return this._hass?.states?.[id]?.attributes?.friendly_name||id;}
   _refreshStates(){
-    if(!this._tbody||!this._snapshot)return;
+    if(!this._lightList||!this._snapshot)return;
     this._updateProgress();
-    const t=this.t;this._tbody.replaceChildren();
-    for(const item of this._snapshot.lights){
-      const row=this._el("tr");
-      const state=this._hass.states[item.entity_id];
-      const cells=[
-        this._name(item.entity_id),
-        item.copy_day||"—",
-        state?.state==="on"?t.on:(state?.state==="off"?t.off:t.unavailable),
-        !this._snapshot.ready||item.status==="recalculating"?t.recalculating:
-          item.desired==null?t.unavailable:t[item.desired],
-        !this._snapshot.ready?t.recalculating:(t[item.status]||item.status||t.invalid),
-      ];
-      [t.source,t.date,t.actual,t.desired,t.status].forEach((label,i)=>{
-        const td=this._el("td",{class:i===4?"status":""},cells[i]);
-        td.setAttribute("data-label",label);row.append(td);
+    const t=this.t;
+    const info=new Map((this._snapshot.lights||[]).map(item=>[item.entity_id,item]));
+    this._lightList.replaceChildren();
+    const configured=this._snapshot.settings?.lights||[];
+    for(const light of configured){
+      const item=info.get(light);
+      const busy=!this._snapshot.ready||!item||item.status==="recalculating";
+      const state=this._hass?.states?.[light];
+      const row=this._el("li",{class:"light-item"});
+      const heading=this._el("div",{class:"light-heading"});
+      const details=this._el("div",{class:"light-details"});
+      details.append(this._el("span",{class:"light-name"},this._name(light)));
+      details.append(this._el("span",{class:"light-id"},light));
+      const remove=this._el("button",{class:"delete-button",type:"button"});
+      remove.setAttribute("aria-label",t.remove+": "+this._name(light));
+      remove.setAttribute("title",t.removeLabel);
+      remove.disabled=Boolean(this._pendingWrites);
+      const icon=this._el("ha-icon");
+      icon.setAttribute("icon","mdi:delete-outline");
+      remove.append(icon);
+      remove.addEventListener("click",()=>{
+        if(this._pendingWrites)return;
+        const lights=(this._draftSettings?.lights||configured).filter(id=>id!==light);
+        remove.disabled=true;
+        void this._save({lights});
       });
-      this._tbody.append(row);
+      heading.append(details,remove);
+      row.append(heading);
+      const metrics=this._el("div",{class:"light-metrics"});
+      const values=[
+        [t.date,busy?"—":(item.copy_day||"—")],
+        [t.actual,state?.state==="on"?t.on:(state?.state==="off"?t.off:t.unavailable)],
+        [t.desired,busy?t.recalculating:(item.desired==null?t.unavailable:t[item.desired])],
+        [t.status,busy?t.recalculating:(t[item.status]||item.status||t.invalid)],
+      ];
+      for(const [label,value] of values){
+        const metric=this._el("div",{class:"light-metric"});
+        metric.append(this._el("span",{class:"metric-label"},label));
+        metric.append(this._el("span",{class:"metric-value"},value));
+        metrics.append(metric);
+      }
+      row.append(metrics);
+      this._lightList.append(row);
     }
-    if(!this._snapshot.lights.length){
-      const row=this._el("tr");row.append(this._el("td",{},t.empty));this._tbody.append(row);
+    if(!configured.length){
+      this._lightList.append(this._el("li",{class:"helper"},t.empty));
     }
   }
 }
