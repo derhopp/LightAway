@@ -74,6 +74,6 @@ class LightAwayCalculated(BinarySensorEntity):
         result = self.runtime.results.get(self.light, {})
         return {
             "source_entity": self.light,
-            "original_day": result.get("original_day"),
+            "copy_day": result.get("copy_day"),
             "diagnostic": result.get("status"),
         }

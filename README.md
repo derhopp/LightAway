@@ -12,7 +12,7 @@ on comparable weekdays roughly one year earlier.
 
 ## Features
 
-- Independent original-day selection per light, forward in seven-day increments
+- Independent copy-day selection per light, forward in seven-day increments
 - 23 **elapsed** hours of proven presence and proven light state per reference day
 - Read-only calculated binary sensors, even when replay is switched off
 - Persistent enable preference, presence inversion, and light selection
@@ -60,8 +60,9 @@ and any number of lights, an adjacent presence inversion switch, and a global
 simulation switch. Find entities by friendly name or entity ID. To add a light,
 use the empty search field; to remove one, clear its populated field. Settings
 are saved automatically, without a Save button.
-The status table displays the original day, actual state, computed desired
-state and diagnostic status for every light. All settings persist across
+The status table displays the copy day, actual state, computed desired
+state and diagnostic status for every light. Each calculated binary sensor
+exposes the selected copy date as its `copy_day` attribute. All settings persist across
 Home Assistant restarts. The global simulation setting defaults to off.
 
 On restart, a previously enabled simulation **never** switches anything

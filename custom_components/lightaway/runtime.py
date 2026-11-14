@@ -213,7 +213,7 @@ class LightAwayRuntime:
                                 )
                                 if timeline.valid:
                                     new_results[light] = {
-                                        "original_day": day.isoformat(),
+                                        "copy_day": day.isoformat(),
                                         "timeline": timeline,
                                         "desired": None,
                                         "status": "ok",
@@ -229,7 +229,7 @@ class LightAwayRuntime:
                 new_results.setdefault(
                     light,
                     self._error(
-                        "insufficient_history" if had_presence_match else "no_original_day"
+                        "insufficient_history" if had_presence_match else "no_copy_day"
                     ),
                 )
             if generation != self._generation:
@@ -242,7 +242,7 @@ class LightAwayRuntime:
 
     @staticmethod
     def _error(reason: str) -> dict[str, Any]:
-        return {"original_day": None, "desired": None, "status": reason, "timeline": None}
+        return {"copy_day": None, "desired": None, "status": reason, "timeline": None}
 
     def presence(self) -> bool | None:
         entity = self.settings["presence"]
@@ -307,7 +307,7 @@ class LightAwayRuntime:
             items.append(
                 {
                     "entity_id": entity,
-                    "original_day": result.get("original_day"),
+                    "copy_day": result.get("copy_day"),
                     "actual": state.state if state else None,
                     "desired": result.get("desired"),
                     "status": (

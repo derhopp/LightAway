@@ -52,8 +52,8 @@ async def test_independent_reference_days_and_calculated_states():
     ):
         await rt._rebuild(1)
     assert rt._ready
-    assert rt.results["light.a"]["original_day"] == candidates[0].isoformat()
-    assert rt.results["light.b"]["original_day"] == candidates[1].isoformat()
+    assert rt.results["light.a"]["copy_day"] == candidates[0].isoformat()
+    assert rt.results["light.b"]["copy_day"] == candidates[1].isoformat()
     assert rt.results["light.a"]["desired"] == "off"
     assert rt.results["light.b"]["desired"] == "on"
     rt.hass.services.async_call.assert_not_awaited()

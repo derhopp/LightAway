@@ -3,7 +3,7 @@ const translations = {
   en: {
     title: "LightAway", presence: "Presence entity", invert: "Invert presence",
     lights: "Lights", simulation: "Enable simulation",
-    source: "Light", date: "Original day", actual: "Actual", desired: "Desired",
+    source: "Light", date: "Copy day", actual: "Actual", desired: "Desired",
     status: "Status", saved: "Configuration saved automatically",
     choose: "Search by name or entity ID", empty: "No lights selected",
     select: "Selected lights", addLight: "Add a light",
@@ -12,7 +12,7 @@ const translations = {
     loading: "Loading LightAway…",
     error: "Failed to load LightAway", active: "Present", away: "Away",
     invalid: "Unknown", on: "On", off: "Off", unavailable: "Unavailable",
-    ok: "Valid", no_original_day: "No suitable original day",
+    ok: "Valid", no_copy_day: "No suitable copy day",
     recorder_unavailable: "Recorder data unavailable",
     insufficient_history: "Insufficient valid historical states",
     light_unavailable: "Light unavailable", light_missing: "Light deleted",
@@ -26,7 +26,7 @@ const translations = {
   de: {
     title: "LightAway", presence: "Anwesenheits-Entität", invert: "Anwesenheit invertieren",
     lights: "Leuchten", simulation: "Simulation aktivieren",
-    source: "Licht", date: "Original-Tag", actual: "Ist-Zustand", desired: "Soll-Zustand",
+    source: "Licht", date: "Kopiertag", actual: "Ist-Zustand", desired: "Soll-Zustand",
     status: "Status", saved: "Konfiguration automatisch gespeichert",
     choose: "Nach Name oder Entity-ID suchen", empty: "Keine Leuchten ausgewählt",
     select: "Ausgewählte Leuchten", addLight: "Leuchte hinzufügen",
@@ -35,7 +35,7 @@ const translations = {
     loading: "LightAway wird geladen…",
     error: "LightAway konnte nicht geladen werden", active: "Anwesend", away: "Abwesend",
     invalid: "Unbekannt", on: "An", off: "Aus", unavailable: "Nicht verfügbar",
-    ok: "Gültig", no_original_day: "Kein geeigneter Original-Tag",
+    ok: "Gültig", no_copy_day: "Kein geeigneter Kopiertag",
     recorder_unavailable: "Recorder-Daten nicht verfügbar",
     insufficient_history: "Zu wenige gültige historische Zustände",
     light_unavailable: "Leuchte nicht verfügbar", light_missing: "Leuchte gelöscht",
@@ -256,7 +256,7 @@ class LightAwayCard extends HTMLElement {
       const state=this._hass.states[item.entity_id];
       const cells=[
         this._name(item.entity_id),
-        item.original_day||"—",
+        item.copy_day||"—",
         state?.state==="on"?t.on:(state?.state==="off"?t.off:t.unavailable),
         item.desired==null?t.unavailable:t[item.desired],
         t[item.status]||item.status||t.invalid,

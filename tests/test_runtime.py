@@ -23,7 +23,7 @@ def runtime():
         "enabled": True,
     }
     instance.results = {
-        light: {"desired": "on", "timeline": None, "status": "ok", "original_day": "2025-11-14"}
+        light: {"desired": "on", "timeline": None, "status": "ok", "copy_day": "2025-11-14"}
         for light in instance.settings["lights"]
     }
     instance._notify = lambda: None
@@ -98,3 +98,17 @@ async def test_configuration_persists(runtime):
 def test_snapshot_read_only(runtime):
     assert len(runtime.snapshot()["lights"]) == 2
     assert runtime.snapshot()["settings"]["enabled"] is True
+
+
+def test_snapshot_uses_copy_day(runtime):
+    result = runtime.snapshot()["lights"][0]
+    assert result["copy_day"] == "2025-11-14"
+    assert "original_day" not in result
+
+
+def test_calculated_sensor_exposes_copy_day(runtime):
+    from custom_components.lightaway.binary_sensor import LightAwayCalculated
+
+    sensor = LightAwayCalculated(runtime, "light.one", "test_light")
+    assert sensor.extra_state_attributes["copy_day"] == "2025-11-14"
+    assert "original_day" not in sensor.extra_state_attributes
