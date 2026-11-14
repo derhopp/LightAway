@@ -9,6 +9,9 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _enable_custom_integrations(request):
-    if request.node.name == "test_config_flow_and_global_switch":
+    if request.node.name in (
+        "test_config_flow_and_global_switch",
+        "test_calculated_entities_update_from_recorder_result",
+    ):
         request.getfixturevalue("recorder_mock")
     request.getfixturevalue("enable_custom_integrations")
