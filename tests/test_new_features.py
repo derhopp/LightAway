@@ -17,7 +17,7 @@ from custom_components.lightaway.model import (
     local_day_bounds,
 )
 from custom_components.lightaway.runtime import LightAwayRuntime
-from custom_components.lightaway.switch import LightAwaySwitch
+from custom_components.lightaway.switch import LightAwaySwitch, LightAwayOptionSwitch
 
 
 TODAY = date(2026, 11, 13)
@@ -215,3 +215,29 @@ def test_created_entities_share_one_integration_device():
     assert switch.device_info["identifiers"] == expected
     assert binary.unique_id == "copy_a"
     assert switch.unique_id == "my_entry_simulation"
+
+
+@pytest.mark.asyncio
+async def test_setting_switches_persist_and_trigger_recalculation():
+    """Each stateful dashboard toggle has its own integration switch."""
+    instance = runtime()
+    instance.store.async_save = AsyncMock()
+    instance.request_rebuild = MagicMock()
+    instance._track_entities = MagicMock()
+    for setting, suffix, initial in (
+        ("invert", "invert_presence", False),
+        ("use_recent_weeks", "use_recent_weeks", True),
+        ("just_same_copy_day", "just_same_copy_day", False),
+    ):
+        entity = LightAwayOptionSwitch(instance, setting, setting, suffix)
+        assert entity.unique_id == f"my_entry_{suffix}"
+        assert entity.device_info["identifiers"] == {(DOMAIN, "my_entry")}
+        assert entity.is_on is initial
+        await entity.async_turn_on()
+        assert entity.is_on is True
+        await entity.async_turn_off()
+        assert entity.is_on is False
+        await instance.async_configure({setting: initial})
+        assert entity.is_on is initial
+    assert instance.store.async_save.await_count >= 6
+    assert instance.request_rebuild.call_count >= 6

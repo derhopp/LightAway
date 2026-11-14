@@ -130,3 +130,36 @@ test("progress is visible while recalculation or configuration is pending", () =
   card._updateProgress();
   assert.equal(progress.hidden, false);
 });
+
+
+test("wide card prefers a full section and exposes one add picker with a button", () => {
+  const card = new Card();
+  const grid = card.getGridOptions();
+  assert.equal(grid.columns, "full");
+  const source = fs.readFileSync(
+    path.join(__dirname, "../custom_components/lightaway/frontend/lightaway-card.js"),
+    "utf8"
+  );
+  assert.match(source, /width:min\(150%,calc\(100vw - 40px\)\)/);
+  assert.match(source, /const addPicker=this\._entityPicker\(\["light"\]/);
+  assert.match(source, /addPicker\.addEventListener\("value-changed"/);
+  assert.match(source, /addButton\.addEventListener\("click"/);
+  assert.match(source, /addControl\.append\(addButton\)/);
+  assert.match(source, /icon\.setAttribute\("icon","mdi:delete-outline"\)/);
+  assert.match(source, /remove\.addEventListener\("click"/);
+  assert.doesNotMatch(source, /const picker=this\._entityPicker\(\["light"\],light/);
+});
+
+test("add picker only changes candidate; clicking Add persists it", async () => {
+  const source = fs.readFileSync(
+    path.join(__dirname, "../custom_components/lightaway/frontend/lightaway-card.js"),
+    "utf8"
+  );
+  const choice = source.slice(
+    source.indexOf('const addPicker=this._entityPicker(["light"]'),
+    source.indexOf('const selectedList=this._el(')
+  );
+  assert.match(choice, /this\._lightCandidate=event\.detail\?\.value\|\|""/);
+  assert.match(choice, /void this\._save\(\{lights:\[\.\.\.lights,value\]\}\)/);
+  assert.equal((choice.match(/this\._save\(/g)||[]).length, 1);
+});

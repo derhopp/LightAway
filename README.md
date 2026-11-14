@@ -18,6 +18,7 @@ on matching weekdays near last year, with an optional recent-weeks fallback.
 - Persistent enable, inversion, light selection, and weekly date-window options
 - Strict fail-closed replay when presence or light state is unknown
 - Lovelace dashboard configuration and monitoring, desktop and mobile
+- Independent Home Assistant switches for simulation, presence inversion, recent weeks, and shared copy day
 - English and German user interface, automatically selected by user language
 - No fixed limit on configured lights
 - Initial GitHub release v0.1.0; no automatic future releases
@@ -56,9 +57,19 @@ resource with that URL manually.
 
 Integration setup creates a single LightAway instance. The dashboard card
 provides searchable entity fields, presence inversion, a simulation switch,
-and the four week-window and copy-day selection options. Find entities by friendly name or entity ID. To add a light,
-use the empty search field; to remove one, clear its populated field. Settings
-are saved automatically, without a Save button.
+and the four week-window and copy-day selection options. Find entities by friendly
+name or entity ID. To add a light, choose it in the single light entity picker
+and press **Add** below the picker. Selected lights appear in a separate list
+with a trash icon for removal. Both operations are saved automatically.
+Persistent toggle controls (simulation, invert presence, recent weeks, same
+copy day) are also available as dedicated LightAway switch entities for
+automations. Add/Delete are momentary UI actions rather than switch entities.
+
+The card is designed for a wider desktop layout (up to 150% of a normal card
+column) with a mobile-friendly full-width layout. In the Home Assistant
+**Sections** dashboard, it requests the full section width. In **Masonry**
+dashboards, column width is controlled by Home Assistant; adjust the
+dashboard layout if the card would overlap an adjacent column.
 The status table displays the copy day, actual state, computed desired
 state and diagnostic status for every light. A live progress indicator shows
 when the integration is recalculating copy days, including after settings
@@ -79,7 +90,8 @@ presence blocks **all** light service calls.
 
 ## Managing light entities
 
-Search for any number of `light.*` entries using the native entity pickers.
+Add any number of `light.*` entries via the single native entity picker
+and the Add button below it. Delete a configured light with its trash icon.
 Each light gets a
 read-only LightAway binary sensor grouped with the global switch under the LightAway integration device. Removing a light from the configuration
 removes its calculated sensor from Home Assistant's entity registry.

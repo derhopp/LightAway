@@ -21,6 +21,16 @@ async def test_config_flow_and_global_switch(recorder_db_url, hass, recorder_moc
     assert len(hass.config_entries.async_entries(DOMAIN)) == 1
     assert hass.states.get("switch.lightaway_simulation") is not None
     assert hass.states.get("switch.lightaway_simulation").state == "off"
+    for option_id, expected in (
+        ("switch.lightaway_invert_presence", "off"),
+        ("switch.lightaway_use_recent_weeks", "on"),
+        ("switch.lightaway_just_same_copy_day", "off"),
+    ):
+        state = hass.states.get(option_id)
+        assert state is not None and state.state == expected
+        option_entity = er.async_get(hass).async_get(option_id)
+        assert option_entity is not None
+        assert option_entity.config_entry_id == hass.config_entries.async_entries(DOMAIN)[0].entry_id
     entity = er.async_get(hass).async_get("switch.lightaway_simulation")
     assert entity is not None and entity.device_id is not None
     device = dr.async_get(hass).async_get(entity.device_id)

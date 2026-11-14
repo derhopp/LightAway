@@ -11,7 +11,8 @@ const translations = {
     choose: "Search by name or entity ID", empty: "No lights selected",
     select: "Selected lights", addLight: "Add a light",
     lightField: "Light", duplicate: "This light is already selected",
-    searchHint: "Type a name or entity ID to search. Changes are saved automatically.",
+    add: "Add light", remove: "Remove light", removeLabel: "Remove",
+    searchHint: "Search by name or entity ID, then use Add. Remove lights with the trash icon; changes are saved automatically.",
     loading: "Loading LightAway…",
     error: "Failed to load LightAway", active: "Present", away: "Away",
     invalid: "Unknown", on: "On", off: "Off", unavailable: "Unavailable",
@@ -38,7 +39,8 @@ const translations = {
     choose: "Nach Name oder Entity-ID suchen", empty: "Keine Leuchten ausgewählt",
     select: "Ausgewählte Leuchten", addLight: "Leuchte hinzufügen",
     lightField: "Leuchte", duplicate: "Diese Leuchte ist bereits ausgewählt",
-    searchHint: "Nach Name oder Entity-ID suchen. Änderungen werden automatisch gespeichert.",
+    add: "Hinzufügen", remove: "Leuchte entfernen", removeLabel: "Entfernen",
+    searchHint: "Nach Name oder Entity-ID suchen und dann hinzufügen. Leuchten über die Mülltonne entfernen. Änderungen werden automatisch gespeichert.",
     loading: "LightAway wird geladen…",
     error: "LightAway konnte nicht geladen werden", active: "Anwesend", away: "Abwesend",
     invalid: "Unbekannt", on: "An", off: "Aus", unavailable: "Nicht verfügbar",
@@ -56,18 +58,32 @@ const translations = {
   }
 };
 const css = `
-:host{display:block;color:var(--primary-text-color)}
+:host{display:block;color:var(--primary-text-color);box-sizing:border-box;width:100%}
+@media(min-width:900px){:host{width:min(150%,calc(100vw - 40px))}}
 ha-card{padding:16px;overflow:hidden}
 h2{font-size:1.2rem;margin:0 0 12px}
 h3{font-size:1rem;margin:18px 0 8px}
-.flex{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.flex{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start}
 .field{min-width:215px;flex:1}
 label{display:block;font-size:.875rem;margin-bottom:5px}
 ha-entity-picker{display:block;width:100%;min-width:0}
 input[type=number]{display:block;box-sizing:border-box;width:100%;min-height:40px;background:var(--card-background-color);border:1px solid var(--divider-color);border-radius:6px;padding:8px;color:var(--primary-text-color);font:inherit}
-.entity-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px;align-items:start}
+.entity-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:14px;align-items:start}
+.picker-control{display:flex;flex-direction:column;align-items:stretch;gap:10px;max-width:520px}
+.picker-action{align-self:flex-start;min-width:125px;border:0;background:var(--primary-color);color:var(--text-primary-color,#fff);border-radius:8px;min-height:38px;padding:8px 18px;cursor:pointer;font:inherit;font-weight:600}
+.picker-action:disabled{opacity:.45;cursor:default}
+.selected-lights{display:flex;flex-direction:column;gap:5px;margin:12px 0 0;padding:0;list-style:none}
+.selected-light{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 12px;border:1px solid var(--divider-color);border-radius:8px;min-width:0}
+.light-details{display:flex;flex-direction:column;gap:2px;min-width:0}
+.light-name{overflow-wrap:anywhere;font-size:.94rem;font-weight:500}
+.light-id{color:var(--secondary-text-color);overflow-wrap:anywhere;font-size:.79rem}
+.delete-button{display:inline-flex;align-items:center;justify-content:center;min-width:38px;min-height:38px;flex-shrink:0;color:var(--error-color,var(--primary-text-color));background:transparent;border:0;border-radius:8px;cursor:pointer}
+.delete-button:hover,.delete-button:focus-visible{background:var(--secondary-background-color)}
+.delete-button svg{height:20px;width:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.switch-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:14px;margin:14px 0}
+
 .helper{color:var(--secondary-text-color);font-size:.85rem;line-height:1.4}
-label.toggle{display:flex;gap:8px;align-items:center;cursor:pointer}
+label.toggle{display:flex;gap:8px;align-items:center;cursor:pointer;min-height:36px}
 input[type=checkbox]{accent-color:var(--primary-color);width:18px;height:18px}
 table{border-collapse:collapse;width:100%}
 th,td{border-bottom:1px solid var(--divider-color);padding:10px 6px;text-align:left;overflow-wrap:anywhere}
@@ -80,6 +96,9 @@ th{font-size:.82rem;color:var(--secondary-text-color)}
 @keyframes lightaway-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.update-spinner{animation:none}}
 @media(max-width:650px){
+:host{width:100%;max-width:100%}
+.picker-control{max-width:none}
+
 thead{display:none}
 tr{display:block;border-bottom:1px solid var(--divider-color);padding:8px 0}
 td{display:flex;border:0;padding:4px 0;gap:12px}
@@ -95,7 +114,8 @@ class LightAwayCard extends HTMLElement {
     else if(this._snapshot) this._refreshStates();
     if(this.isConnected) void this._subscribeUpdates();
   }
-  getCardSize(){return 5;}
+  getCardSize(){return 6;}
+  getGridOptions(){return {columns:"full",min_columns:6};}
   connectedCallback(){
     if (!this._timer) this._timer = setInterval(() => this._load(true), 15000);
     void this._subscribeUpdates();
@@ -220,8 +240,7 @@ class LightAwayCard extends HTMLElement {
     }
     card.append(this._el("h3",{},t.config));
     const settings=this._snapshot.settings;
-    const flex=this._el("div",{class:"flex"});
-    const presence=this._el("div",{class:"field"});
+    const presence=this._el("div",{class:"picker-control"});
     const presencePicker=this._entityPicker(
       ["binary_sensor","switch","input_boolean"],settings.presence||"",t.presence,t.choose
     );
@@ -230,18 +249,21 @@ class LightAwayCard extends HTMLElement {
       if(value===(this._draftSettings?.presence??null))return;
       void this._save({presence:value});
     });
-    presence.append(presencePicker);flex.append(presence);
-    const invertWrap=this._el("label",{class:"toggle"});
-    const invert=this._el("input",{type:"checkbox"});
-    invert.checked=!!settings.invert;
-    invert.addEventListener("change",()=>void this._save({invert:invert.checked}));
-    invertWrap.append(invert,document.createTextNode(t.invert));flex.append(invertWrap);
-    const enableWrap=this._el("label",{class:"toggle"});
-    const enable=this._el("input",{type:"checkbox"});
-    enable.checked=!!settings.enabled;
-    enable.addEventListener("change",()=>void this._save({enabled:enable.checked}));
-    enableWrap.append(enable,document.createTextNode(t.simulation));flex.append(enableWrap);
-    card.append(flex);
+    presence.append(presencePicker);
+    card.append(presence);
+    const optionControls=this._el("div",{class:"switch-options"});
+    for(const [key,label] of [
+      ["invert",t.invert],["enabled",t.simulation],
+      ["use_recent_weeks",t.recentWeeks],["just_same_copy_day",t.sameCopyDay],
+    ]){
+      const wrapper=this._el("label",{class:"toggle"});
+      const input=this._el("input",{type:"checkbox"});
+      input.checked=!!settings[key];
+      input.addEventListener("change",()=>void this._save({[key]:input.checked}));
+      wrapper.append(input,document.createTextNode(label));
+      optionControls.append(wrapper);
+    }
+    card.append(optionControls);
     const ranges=this._el("div",{class:"flex"});
     for(const [key,translation,minimum] of [
       ["min_weeks_from_today",t.minWeeks,1],
@@ -267,57 +289,59 @@ class LightAwayCard extends HTMLElement {
       field.append(label,input);
       ranges.append(field);
     }
-    for(const [key,translation] of [
-      ["use_recent_weeks",t.recentWeeks],
-      ["just_same_copy_day",t.sameCopyDay],
-    ]){
-      const row=this._el("label",{class:"toggle"});
-      const input=this._el("input",{type:"checkbox"});
-      input.checked=!!settings[key];
-      input.addEventListener("change",()=>void this._save({[key]:input.checked}));
-      row.append(input,document.createTextNode(translation));
-      ranges.append(row);
-    }
     card.append(ranges);
     const presenceValue=this._snapshot.presence_status;
     card.append(this._el("p",{class:"message"},!settings.presence?t.presence_not_configured:(presenceValue===null?t.presence_unavailable:(presenceValue?t.active:t.away))));
     card.append(this._el("h3",{},t.select));
     card.append(this._el("p",{class:"helper"},t.searchHint));
-    const entityFields=this._el("div",{class:"entity-fields"});
-    for(const [index,light] of settings.lights.entries()){
-      const picker=this._entityPicker(["light"],light,`${t.lightField} ${index+1}`,t.choose);
-      picker.addEventListener("value-changed",event=>{
-        const replacement=event.detail?.value||null;
-        const lights=[...(this._draftSettings?.lights||settings.lights)];
-        const currentIndex=lights.indexOf(light);
-        if(currentIndex===-1)return;
-        if(replacement===light)return;
-        if(replacement&&lights.includes(replacement)){
-          picker.value=light;
-          this._showMessage(t.duplicate);
-          return;
-        }
-        if(replacement)lights[currentIndex]=replacement;
-        else lights.splice(currentIndex,1);
-        void this._save({lights});
-      });
-      entityFields.append(picker);
-    }
-    // Always provide a searchable field, never render the entire entity list.
+    const addControl=this._el("div",{class:"picker-control"});
     const addPicker=this._entityPicker(["light"],"",t.addLight,t.choose);
+    this._lightCandidate="";
+    addControl.append(addPicker);
+    const addButton=this._el("button",{class:"picker-action",type:"button"},t.add);
+    addButton.disabled=true;
     addPicker.addEventListener("value-changed",event=>{
-      const value=event.detail?.value;
-      if(!value)return;
+      this._lightCandidate=event.detail?.value||"";
+      addButton.disabled=!this._lightCandidate||Boolean(this._pendingWrites);
+    });
+    addButton.addEventListener("click",()=>{
+      const value=this._lightCandidate;
+      if(!value||this._pendingWrites)return;
       const lights=[...(this._draftSettings?.lights||settings.lights)];
-      // Keep the selection visible until the server acknowledges the save.
       if(lights.includes(value)){
         this._showMessage(t.duplicate);
         return;
       }
+      addButton.disabled=true;
       void this._save({lights:[...lights,value]});
     });
-    entityFields.append(addPicker);
-    card.append(entityFields);
+    addControl.append(addButton);
+    card.append(addControl);
+    const selectedList=this._el("ul",{class:"selected-lights"});
+    for(const light of settings.lights){
+      const item=this._el("li",{class:"selected-light"});
+      const details=this._el("div",{class:"light-details"});
+      details.append(this._el("span",{class:"light-name"},this._name(light)));
+      details.append(this._el("span",{class:"light-id"},light));
+      const remove=this._el("button",{class:"delete-button",type:"button"});
+      remove.setAttribute("aria-label",t.remove+": "+this._name(light));
+      remove.setAttribute("title",t.removeLabel);
+      const icon=this._el("ha-icon");
+      icon.setAttribute("icon","mdi:delete-outline");
+      remove.append(icon);
+      remove.addEventListener("click",()=>{
+        if(this._pendingWrites)return;
+        const lights=(this._draftSettings?.lights||settings.lights).filter(id=>id!==light);
+        remove.disabled=true;
+        void this._save({lights});
+      });
+      item.append(details,remove);
+      selectedList.append(item);
+    }
+    if(!settings.lights.length){
+      selectedList.append(this._el("li",{class:"helper"},t.empty));
+    }
+    card.append(selectedList);
     card.append(this._el("h3",{},t.monitor));
     this._progress=this._el("div",{class:"update-progress"});
     this._progress.setAttribute("role","status");
