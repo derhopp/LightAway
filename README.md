@@ -17,6 +17,8 @@ on matching weekdays near last year, with an optional recent-weeks fallback.
 - Read-only calculated binary sensors, even when replay is switched off
 - Persistent enable, inversion, light selection, and weekly date-window options
 - Strict fail-closed replay when presence or light state is unknown
+- Downloadable diagnostics naming every candidate day, its evidence and its status
+- Recalculation after a Home Assistant time zone change
 - Lovelace dashboard configuration and monitoring, desktop and mobile
 - English and German user interface, automatically selected by user language
 - No fixed limit on configured lights
@@ -95,17 +97,22 @@ The dashboard exposes the following persistent options:
 | Use recent Weeks | Boolean | true |
 | Just same copy day | Boolean | false |
 
+**Min. Weeks from today** must not be greater than **Max. Weeks away**: such a
+window can never contain a recent week. The card refuses the combination and
+the server rejects it with an `invalid_config` error, and a stored range of that
+shape is reset to the defaults on startup.
+
 **Priority 1 – anniversary window.** Search completed past local dates within
 one calendar year ago ± **Max. Weeks away** weeks (inclusive). Feb 29 maps to
 Feb 28 in non-leap years. Only dates with the same weekday as today are used.
 Test the closest matching weekday to the anniversary first, proceeding outward;
 equal-distance candidates prefer the earlier date.
 
-**Priority 2 – recent weeks.** If the first window has no qualified date,
-and **Use recent Weeks** is enabled and **Max. Weeks away** is greater than
-**Min. Weeks from today**, search exactly 1-week-spaced dates from
+**Priority 2 – recent weeks.** If the first window has no qualified date and
+**Use recent Weeks** is enabled, search exactly 1-week-spaced dates from
 today minus **Min. Weeks from today** through today minus **Max. Weeks away**
-weeks (both endpoints inclusive), nearest first. Otherwise skip this priority.
+weeks (both endpoints inclusive), nearest first. Equal bounds therefore select
+exactly that one week. Otherwise skip this priority.
 
 **Priority 3 – no eligible day.** If no candidate qualifies, LightAway
 reports no copy day and does not switch the affected lights.
@@ -152,7 +159,9 @@ global switch is enabled or disabled. Invalid historical playback values
 reuse the preceding valid state. If none exists at the target time,
 playback defaults to off **only after a reference day passed validation**.
 
-Wall-clock time in the Home Assistant local timezone is used. Recorded
+Wall-clock time in the Home Assistant local timezone is used. A changed time
+zone invalidates the cached copy days and triggers a rebuild, because it moves
+every local midnight. Recorded
 interval durations are computed using UTC timestamps, including for 23- and
 25-hour days. On repeated fall-back clock hours, matching fold occurrences
 are selected when present; on a normal day the first matching occurrence
@@ -175,7 +184,11 @@ deleted or unavailable lights, calculation errors and service call failures.
 Every light is assessed independently. Check **Settings → System → Logs**
 for detailed tracebacks.
 
-For missing reference days, verify the full year of detailed Recorder state
+For missing reference days, download the integration diagnostics at
+**Settings → Devices & services → LightAway → Download diagnostics**. They list
+each candidate day that was examined, the proven presence seconds and the proven
+seconds per light, which shows whether the window or the Recorder retention is
+the blocker. Also verify the full year of detailed Recorder state
 retention for both the presence entity and the light. A Recorder restart
 without a reconfirming state may leave an unverifiable interval.
 A missing presence sensor must be restored or replaced before any switching
