@@ -30,8 +30,11 @@ async def test_config_flow_and_global_switch(recorder_db_url, hass, recorder_moc
         hass.config_entries.async_entries(DOMAIN)[0].entry_id,
     ) in device.identifiers
 
+
 @pytest.mark.asyncio
-async def test_calculated_entities_update_from_recorder_result(recorder_db_url, hass, recorder_mock):
+async def test_calculated_entities_update_from_recorder_result(
+    recorder_db_url, hass, recorder_mock
+):
     """Regression: dashboard data and HA binary sensor must agree after a rebuild."""
     assert await async_setup_component(hass, DOMAIN, {})
     flow = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
@@ -46,7 +49,8 @@ async def test_calculated_entities_update_from_recorder_result(recorder_db_url, 
 
     registry = er.async_get(hass)
     sensors = [
-        entity for entity in er.async_entries_for_config_entry(registry, entry.entry_id)
+        entity
+        for entity in er.async_entries_for_config_entry(registry, entry.entry_id)
         if entity.domain == "binary_sensor"
     ]
     assert len(sensors) == 1

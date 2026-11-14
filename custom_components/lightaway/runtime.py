@@ -343,8 +343,9 @@ class LightAwayRuntime:
                     "actual": state.state if state else None,
                     "desired": result.get("desired"),
                     "status": (
-                        "recalculating" if not self._ready else
-                        "light_missing"
+                        "recalculating"
+                        if not self._ready
+                        else "light_missing"
                         if state is None
                         else "light_unavailable"
                         if state.state not in ("on", "off")

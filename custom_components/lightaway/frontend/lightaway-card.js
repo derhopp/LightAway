@@ -179,6 +179,7 @@ class LightAwayCard extends HTMLElement {
     const next={...(this._draftSettings||this._snapshot?.settings||{}),...changes};
     this._draftSettings=next;
     this._pendingWrites=(this._pendingWrites||0)+1;
+    this._updateProgress();
     const task=async()=>{
       const data=await this._hass.callWS({type:"lightaway/configure",...changes});
       this._snapshot=data;
