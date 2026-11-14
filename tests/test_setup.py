@@ -4,6 +4,7 @@ import pytest
 
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.setup import async_setup_component
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from custom_components.lightaway.const import DOMAIN
 
@@ -20,3 +21,8 @@ async def test_config_flow_and_global_switch(recorder_db_url, hass, recorder_moc
     assert len(hass.config_entries.async_entries(DOMAIN)) == 1
     assert hass.states.get("switch.lightaway_simulation") is not None
     assert hass.states.get("switch.lightaway_simulation").state == "off"
+    entity = er.async_get(hass).async_get("switch.lightaway_simulation")
+    assert entity is not None and entity.device_id is not None
+    device = dr.async_get(hass).async_get(entity.device_id)
+    assert device is not None
+    assert ("lightaway", hass.config_entries.async_entries(DOMAIN)[0].entry_id) in device.identifiers

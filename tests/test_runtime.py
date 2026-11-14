@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from custom_components.lightaway.const import DEFAULT_OPTIONS
 from custom_components.lightaway.runtime import LightAwayRuntime
 
 
@@ -17,6 +18,7 @@ def runtime():
     instance = LightAwayRuntime(hass, "test")
     instance._ready = True
     instance.settings = {
+        **DEFAULT_OPTIONS,
         "presence": "input_boolean.present",
         "invert": False,
         "lights": ["light.one", "light.two"],

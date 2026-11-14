@@ -2,20 +2,20 @@
 
 LightAway is a Home Assistant custom integration that computes and optionally replays
 the **binary on/off** behavior of individual lights from historical Recorder states
-on comparable weekdays roughly one year earlier.
+on matching weekdays near last year, with an optional recent-weeks fallback.
 
 > **History prerequisite:** Home Assistant normally purges detailed Recorder state
-> history after about ten days. LightAway needs at least **one year of retained
-> state history** for both the selected presence entity and each light. Configure
+> history after about ten days. The anniversary search needs about a year of
+> detailed state history; recent-weeks fallback can work with shorter retention. Configure
 > your own Recorder retention *before* you need that history. LightAway never
 > changes Recorder settings or the database itself.
 
 ## Features
 
-- Independent copy-day selection per light, forward in seven-day increments
+- Prioritized anniversary and recent-week copy-day search, with optional shared date
 - 23 **elapsed** hours of proven presence and proven light state per reference day
 - Read-only calculated binary sensors, even when replay is switched off
-- Persistent enable preference, presence inversion, and light selection
+- Persistent enable, inversion, light selection, and weekly date-window options
 - Strict fail-closed replay when presence or light state is unknown
 - Lovelace dashboard configuration and monitoring, desktop and mobile
 - English and German user interface, automatically selected by user language
@@ -25,7 +25,7 @@ on comparable weekdays roughly one year earlier.
 ## Requirements
 
 - Home Assistant 2026.10 or newer, with the Recorder integration enabled
-- Recorder retaining a year or more of **detailed state history**, not just
+- Recorder retaining enough **detailed state history** for eligible windows, not just
   aggregated long-term statistics
 - Presence entity in `binary_sensor`, `switch`, or `input_boolean`
 - Available `light.*` entities
@@ -55,9 +55,8 @@ resource with that URL manually.
 ## Initial setup and dashboard configuration
 
 Integration setup creates a single LightAway instance. The dashboard card
-provides native Home Assistant searchable entity fields for one presence entity
-and any number of lights, an adjacent presence inversion switch, and a global
-simulation switch. Find entities by friendly name or entity ID. To add a light,
+provides searchable entity fields, presence inversion, a simulation switch,
+and the four week-window and copy-day selection options. Find entities by friendly name or entity ID. To add a light,
 use the empty search field; to remove one, clear its populated field. Settings
 are saved automatically, without a Save button.
 The status table displays the copy day, actual state, computed desired
@@ -80,24 +79,53 @@ presence blocks **all** light service calls.
 
 Search for any number of `light.*` entries using the native entity pickers.
 Each light gets a
-read-only LightAway binary sensor. Removing a light from the configuration
+read-only LightAway binary sensor grouped with the global switch under the LightAway integration device. Removing a light from the configuration
 removes its calculated sensor from Home Assistant's entity registry.
 A missing original light is shown as missing and is never operated.
 Registry renames are tracked to preserve existing selections where possible.
 
-## Copy-day selection
+## Copy-day selection and settings
 
-For each light separately, the ideal reference date is today's local date
-minus one calendar year (Feb 29 maps to Feb 28). The first candidate is the
-first date on or after that ideal date with the **same weekday** as today.
-Further candidates are seven calendar days apart. The final allowed candidate
-is one calendar month before today (month subtraction clamps the day).
+The dashboard exposes the following persistent options:
+
+| Setting | Allowed values | Default |
+| --- | --- | --- |
+| Min. Weeks from today | Integer 1–52 | 1 |
+| Max. Weeks away | Integer 2–52 | 8 |
+| Use recent Weeks | Boolean | true |
+| Just same copy day | Boolean | false |
+
+**Priority 1 – anniversary window.** Search completed past local dates within
+one calendar year ago ± **Max. Weeks away** weeks (inclusive). Feb 29 maps to
+Feb 28 in non-leap years. Only dates with the same weekday as today are used.
+Test the closest matching weekday to the anniversary first, proceeding outward;
+equal-distance candidates prefer the earlier date.
+
+**Priority 2 – recent weeks.** If the first window has no qualified date,
+and **Use recent Weeks** is enabled and **Max. Weeks away** is greater than
+**Min. Weeks from today**, search exactly 1-week-spaced dates from
+today minus **Min. Weeks from today** through today minus **Max. Weeks away**
+weeks (both endpoints inclusive), nearest first. Otherwise skip this priority.
+
+**Priority 3 – no eligible day.** If no candidate qualifies, LightAway
+reports no copy day and does not switch the affected lights.
+
+**Just same copy day = false**: each light independently takes its first
+eligible candidate. **Just same copy day = true**: accept a date only if
+the presence entity and *all* selected lights pass their independent
+23-hour recording-quality checks on that *same date*. No partial copy
+day is published if no shared day exists.
+
+Every changed option triggers a fresh calculation. Existing installations
+retain their previously selected presence and light entities; new options
+receive the defaults above.
+
+### Qualifications
 
 A candidate passes only if at least 23 elapsed hours of the recorded day
-show valid, **present** presence *and* at least 23 elapsed hours show valid
-`on` or `off` state for that light. The first passing day wins.
-Different lights may therefore choose different dates. A light without a
-passing reference day is unavailable, not falsely reported off.
+show valid **present** presence and at least 23 elapsed hours show valid
+`on` or `off` state for the light. Recording gaps and invalid states
+never count toward qualification. Today and future dates are excluded.
 
 ## Recorder history reconstruction and data quality
 
@@ -156,7 +184,7 @@ rebuild or after an applicable configuration change.
 
 ## Performance
 
-Historical queries are grouped by reference date, with the presence entity
+Historical queries are grouped by candidate date, with the presence entity
 shared across remaining candidates. Once reference days are determined,
 the 30-second tick uses cached transitions and performs **no** historical
 database reads. The algorithm stops searching individually for each light

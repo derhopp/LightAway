@@ -19,6 +19,11 @@ class LightAwaySwitch(SwitchEntity):
     def __init__(self, runtime):
         self.runtime = runtime
         self._attr_unique_id = f"{runtime.entry_id}_simulation"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, runtime.entry_id)},
+            "name": "LightAway",
+            "manufacturer": "LightAway",
+        }
 
     async def async_added_to_hass(self):
         self.async_on_remove(

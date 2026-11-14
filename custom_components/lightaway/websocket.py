@@ -28,6 +28,14 @@ def async_register(hass: HomeAssistant) -> None:
             vol.Optional("invert"): bool,
             vol.Optional("lights"): [vol.Match(r"^light\.[a-z0-9_]+$")],
             vol.Optional("enabled"): bool,
+            vol.Optional("min_weeks_from_today"): vol.All(
+                vol.IsInstance(int), vol.Range(min=1, max=52)
+            ),
+            vol.Optional("max_weeks_away"): vol.All(
+                vol.IsInstance(int), vol.Range(min=2, max=52)
+            ),
+            vol.Optional("use_recent_weeks"): bool,
+            vol.Optional("just_same_copy_day"): bool,
         }
     )
     @websocket_api.async_response
@@ -37,7 +45,13 @@ def async_register(hass: HomeAssistant) -> None:
             connection.send_error(msg["id"], "not_ready", "LightAway is not configured")
             return
         changes = {
-            key: msg[key] for key in ("presence", "invert", "lights", "enabled") if key in msg
+            key: msg[key]
+            for key in (
+                "presence", "invert", "lights", "enabled",
+                "min_weeks_from_today", "max_weeks_away",
+                "use_recent_weeks", "just_same_copy_day",
+            )
+            if key in msg
         }
         await runtime.async_configure(changes)
         connection.send_result(msg["id"], runtime.snapshot())

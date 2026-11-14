@@ -54,11 +54,16 @@ def test_ideal_day_and_search_steps():
     assert shift_year(date(2024, 2, 29)) == date(2023, 2, 28)
     assert shift_year(date(2026, 1, 1)) == date(2025, 1, 1)
     assert previous_month(date(2026, 3, 31)) == date(2026, 2, 28)
-    days = list(candidate_days(date(2026, 11, 13)))
-    assert days and days[0].weekday() == date(2026, 11, 13).weekday()
-    assert days[0] >= date(2025, 11, 13)
-    assert all((b - a).days == 7 for a, b in zip(days, days[1:]))
-    assert all(d <= date(2026, 10, 13) for d in days)
+    today = date(2026, 11, 13)
+    ideal = shift_year(today)
+    days = list(candidate_days(today))
+    yearly = [day for day in days if abs((day - ideal).days) <= 56]
+    assert yearly
+    assert all(day.weekday() == today.weekday() for day in days)
+    assert all(day < today for day in days)
+    assert yearly[0] == min(yearly, key=lambda day: (abs((day - ideal).days), day))
+    assert days[-1] == today - timedelta(weeks=8)
+    assert len(days) == len(set(days))
 
 
 def test_day_lengths():

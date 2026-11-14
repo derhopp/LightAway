@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 from typing import Iterable
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.db_schema import RecorderRuns, States, StatesMeta
 from homeassistant.components.recorder.history import get_significant_states_with_session
@@ -47,20 +47,32 @@ class RecorderHistory:
         """Read recorded runs, real transitions, and corroborated initial states."""
         start, end = local_day_bounds(day, zone)
         events: dict[str, list[TimedState]] = {entity: [] for entity in entity_ids}
+        manager = get_instance(self.hass).recorder_runs_manager
+        active_start = _as_utc(manager.current.start) if manager.active else None
 
         with session_scope(hass=self.hass, read_only=True) as session:
             db_runs = session.scalars(
                 select(RecorderRuns)
-                .where(RecorderRuns.start < end, RecorderRuns.end > start)
+                .where(
+                    RecorderRuns.start < end,
+                    or_(RecorderRuns.end > start, RecorderRuns.end.is_(None)),
+                )
                 .order_by(RecorderRuns.start)
             ).all()
             runs: list[Coverage] = []
             last_end = None
             for run in db_runs:
-                # Unclean shutdowns cannot certify unobserved continuity.
-                if run.closed_incorrect or run.end is None:
+                # Only the currently active run may have a NULL end.
+                # Historical, incorrectly closed runs cannot prove continuity.
+                if run.closed_incorrect:
                     continue
-                run_start, run_end = _as_utc(run.start), _as_utc(run.end)
+                run_start = _as_utc(run.start)
+                if run.end is None:
+                    if active_start is None or run_start != active_start:
+                        continue
+                    run_end = datetime.now(UTC)
+                else:
+                    run_end = _as_utc(run.end)
                 if last_end is not None and run_start < last_end:
                     # Treat overlapping or inconsistent metadata as a gap.
                     continue

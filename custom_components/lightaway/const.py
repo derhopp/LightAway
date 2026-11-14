@@ -10,5 +10,9 @@ DEFAULT_OPTIONS = {
     "invert": False,
     "lights": [],
     "enabled": False,
+    "min_weeks_from_today": 1,
+    "max_weeks_away": 8,
+    "use_recent_weeks": True,
+    "just_same_copy_day": False,
 }
 MIN_SECONDS = 23 * 3600

@@ -3,6 +3,9 @@ const translations = {
   en: {
     title: "LightAway", presence: "Presence entity", invert: "Invert presence",
     lights: "Lights", simulation: "Enable simulation",
+    minWeeks: "Min. Weeks from today", maxWeeks: "Max. Weeks away",
+    recentWeeks: "Use recent Weeks", sameCopyDay: "Just same copy day",
+    invalidWeeks: "Enter a valid whole number in the allowed range.",
     source: "Light", date: "Copy day", actual: "Actual", desired: "Desired",
     status: "Status", saved: "Configuration saved automatically",
     choose: "Search by name or entity ID", empty: "No lights selected",
@@ -26,6 +29,9 @@ const translations = {
   de: {
     title: "LightAway", presence: "Anwesenheits-Entität", invert: "Anwesenheit invertieren",
     lights: "Leuchten", simulation: "Simulation aktivieren",
+    minWeeks: "Min. Wochen Abstand zu heute", maxWeeks: "Max. Wochen Abstand",
+    recentWeeks: "Neuere Wochen verwenden", sameCopyDay: "Nur gemeinsamer Kopiertag",
+    invalidWeeks: "Bitte eine ganze Zahl im erlaubten Bereich eingeben.",
     source: "Licht", date: "Kopiertag", actual: "Ist-Zustand", desired: "Soll-Zustand",
     status: "Status", saved: "Konfiguration automatisch gespeichert",
     choose: "Nach Name oder Entity-ID suchen", empty: "Keine Leuchten ausgewählt",
@@ -56,6 +62,7 @@ h3{font-size:1rem;margin:18px 0 8px}
 .field{min-width:215px;flex:1}
 label{display:block;font-size:.875rem;margin-bottom:5px}
 ha-entity-picker{display:block;width:100%;min-width:0}
+input[type=number]{display:block;box-sizing:border-box;width:100%;min-height:40px;background:var(--card-background-color);border:1px solid var(--divider-color);border-radius:6px;padding:8px;color:var(--primary-text-color);font:inherit}
 .entity-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px;align-items:start}
 .helper{color:var(--secondary-text-color);font-size:.85rem;line-height:1.4}
 label.toggle{display:flex;gap:8px;align-items:center;cursor:pointer}
@@ -195,6 +202,43 @@ class LightAwayCard extends HTMLElement {
     enable.addEventListener("change",()=>void this._save({enabled:enable.checked}));
     enableWrap.append(enable,document.createTextNode(t.simulation));flex.append(enableWrap);
     card.append(flex);
+    const ranges=this._el("div",{class:"flex"});
+    for(const [key,translation,minimum] of [
+      ["min_weeks_from_today",t.minWeeks,1],
+      ["max_weeks_away",t.maxWeeks,2],
+    ]){
+      const field=this._el("div",{class:"field"});
+      const label=this._el("label",{},translation);
+      const input=this._el("input",{type:"number"});
+      input.value=String(settings[key]??(key==="min_weeks_from_today"?1:8));
+      input.min=String(minimum);
+      input.max="52";
+      input.step="1";
+      input.setAttribute("aria-label",translation);
+      input.addEventListener("change",()=>{
+        const number=Number(input.value);
+        if(input.value.trim()===""||!Number.isInteger(number)||number<minimum||number>52){
+          this._showMessage(t.invalidWeeks);
+          input.value=String(this._draftSettings?.[key]??settings[key]);
+          return;
+        }
+        if(number!==this._draftSettings?.[key])void this._save({[key]:number});
+      });
+      field.append(label,input);
+      ranges.append(field);
+    }
+    for(const [key,translation] of [
+      ["use_recent_weeks",t.recentWeeks],
+      ["just_same_copy_day",t.sameCopyDay],
+    ]){
+      const row=this._el("label",{class:"toggle"});
+      const input=this._el("input",{type:"checkbox"});
+      input.checked=!!settings[key];
+      input.addEventListener("change",()=>void this._save({[key]:input.checked}));
+      row.append(input,document.createTextNode(translation));
+      ranges.append(row);
+    }
+    card.append(ranges);
     const presenceValue=this._snapshot.presence_status;
     card.append(this._el("p",{class:"message"},!settings.presence?t.presence_not_configured:(presenceValue===null?t.presence_unavailable:(presenceValue?t.active:t.away))));
     card.append(this._el("h3",{},t.select));

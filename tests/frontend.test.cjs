@@ -93,3 +93,20 @@ test("copy-day label is localized consistently in the card", () => {
   assert.match(source, /item\.copy_day/);
   assert.doesNotMatch(source, /Original.day|original_day/);
 });
+
+test("week controls use numeric and boolean inputs with autosave", () => {
+  const source = fs.readFileSync(
+    path.join(__dirname, "../custom_components/lightaway/frontend/lightaway-card.js"),
+    "utf8"
+  );
+  for(const key of ["min_weeks_from_today","max_weeks_away",
+    "use_recent_weeks","just_same_copy_day"]) {
+    assert.ok(source.includes(key), key);
+  }
+  assert.match(source, /Min\. Weeks from today/);
+  assert.match(source, /Max\. Weeks away/);
+  assert.match(source, /Just same copy day/);
+  assert.ok(source.includes('type:"number"'));
+  assert.ok(source.includes("Number.isInteger"));
+  assert.ok(source.includes("this._save({[key]:number})"));
+});

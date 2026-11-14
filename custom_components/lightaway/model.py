@@ -72,15 +72,42 @@ def previous_month(day: date) -> date:
     return date(year, month, min(day.day, calendar.monthrange(year, month)[1]))
 
 
-def candidate_days(today: date) -> Iterable[date]:
-    """Forward search, same weekday as today, through one-month cutoff."""
+def candidate_days(
+    today: date,
+    *,
+    max_weeks_away: int = 8,
+    min_weeks_from_today: int = 1,
+    use_recent_weeks: bool = True,
+) -> Iterable[date]:
+    """Yield eligible same-weekday dates in strict priority order.
+
+    Priority 1 is the closest matching weekdays in the inclusive calendar
+    interval [one year ago - max weeks, one year ago + max weeks].
+    Priority 2 is recent weekdays 1..N weeks ago, starting with the closest.
+    Only *completed past days* are considered. Duplicate dates are skipped.
+    """
     ideal = shift_year(today)
-    offset = (today.weekday() - ideal.weekday()) % 7
-    candidate = ideal + timedelta(days=offset)
-    limit = previous_month(today)
-    while candidate <= limit:
-        yield candidate
+    earliest = ideal - timedelta(weeks=max_weeks_away)
+    latest = ideal + timedelta(weeks=max_weeks_away)
+    first = earliest + timedelta(days=(today.weekday() - earliest.weekday()) % 7)
+    yearly = []
+    candidate = first
+    while candidate <= latest:
+        if candidate < today:
+            yearly.append(candidate)
         candidate += timedelta(days=7)
+
+    seen: set[date] = set()
+    for candidate in sorted(yearly, key=lambda item: (abs((item - ideal).days), item)):
+        seen.add(candidate)
+        yield candidate
+
+    if use_recent_weeks and max_weeks_away > min_weeks_from_today:
+        for weeks_ago in range(min_weeks_from_today, max_weeks_away + 1):
+            candidate = today - timedelta(weeks=weeks_ago)
+            if candidate not in seen:
+                seen.add(candidate)
+                yield candidate
 
 
 def seconds_between(start: datetime, end: datetime) -> float:
@@ -188,9 +215,18 @@ def first_qualified(
     zone: tzinfo,
     presence: Callable[[date], Timeline],
     light: Callable[[date], Timeline],
+    *,
+    max_weeks_away: int = 8,
+    min_weeks_from_today: int = 1,
+    use_recent_weeks: bool = True,
 ) -> tuple[date, Timeline] | None:
     """Select the first day meeting both independent 23-hour thresholds."""
-    for candidate in candidate_days(today):
+    for candidate in candidate_days(
+        today,
+        max_weeks_away=max_weeks_away,
+        min_weeks_from_today=min_weeks_from_today,
+        use_recent_weeks=use_recent_weeks,
+    ):
         if presence(candidate).valid:
             light_timeline = light(candidate)
             if light_timeline.valid:

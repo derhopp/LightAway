@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+from custom_components.lightaway.const import DEFAULT_OPTIONS
 from custom_components.lightaway.model import Coverage, TimedState, candidate_days, local_day_bounds
 from custom_components.lightaway.runtime import LightAwayRuntime
 
@@ -21,6 +22,7 @@ def fake_runtime():
     rt = LightAwayRuntime(hass, "test")
     rt._notify = lambda: None
     rt.settings = {
+        **DEFAULT_OPTIONS,
         "presence": "binary_sensor.present",
         "invert": False,
         "lights": ["light.a", "light.b"],

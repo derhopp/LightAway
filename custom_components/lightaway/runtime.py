@@ -45,7 +45,15 @@ class LightAwayRuntime:
         saved = await self.store.async_load()
         if isinstance(saved, dict):
             self.settings = {**DEFAULT_OPTIONS, **saved}
+        # Existing installations retain their choices and receive safe new defaults.
         self.settings["lights"] = list(dict.fromkeys(self.settings.get("lights") or []))
+        for key, minimum in (("min_weeks_from_today", 1), ("max_weeks_away", 2)):
+            value = self.settings.get(key)
+            if type(value) is not int or not minimum <= value <= 52:
+                self.settings[key] = DEFAULT_OPTIONS[key]
+        for key in ("use_recent_weeks", "just_same_copy_day"):
+            if type(self.settings.get(key)) is not bool:
+                self.settings[key] = DEFAULT_OPTIONS[key]
         self._callbacks.append(
             async_track_time_interval(self.hass, self._tick, timedelta(seconds=30))
         )
@@ -142,66 +150,78 @@ class LightAwayRuntime:
         self.hass.bus.async_fire("lightaway_updated")
 
     async def async_configure(self, changes: dict[str, Any]) -> None:
-        """Persist only validated user settings; update state without restart."""
+        """Persist settings and recompute all dates after every effective change."""
         new_settings = {**self.settings, **changes}
+        for key, minimum in (("min_weeks_from_today", 1), ("max_weeks_away", 2)):
+            value = new_settings[key]
+            if type(value) is not int or not minimum <= value <= 52:
+                raise ValueError(f"{key} must be an integer from {minimum} to 52")
+        for key in ("use_recent_weeks", "just_same_copy_day"):
+            if type(new_settings[key]) is not bool:
+                raise ValueError(f"{key} must be a boolean")
         new_settings["lights"] = list(dict.fromkeys(new_settings["lights"]))
-        affected = any(
-            new_settings[key] != self.settings[key] for key in ("presence", "invert", "lights")
+        if new_settings == self.settings:
+            return
+        changed_entities = any(
+            new_settings[key] != self.settings[key] for key in ("presence", "lights")
         )
         self.settings = new_settings
         await self.store.async_save(self.settings)
-        self._track_entities()
-        if affected:
-            self.request_rebuild()
-        else:
-            await self.async_update()
+        if changed_entities:
+            self._track_entities()
+        self.request_rebuild()
         self._notify()
 
     async def _rebuild(self, generation: int) -> None:
-        """Recompute independently per light; never publish partial results."""
+        """Select valid source dates in priority order, independently or jointly."""
         async with self._rebuild_lock:
             today = dt_util.now().date()
             zone = dt_util.get_time_zone(self.hass.config.time_zone)
             presence_entity = self.settings["presence"]
             lights = list(self.settings["lights"])
             invert = self.settings["invert"]
+            same_day = self.settings.get("just_same_copy_day", False)
             new_results: dict[str, dict[str, Any]] = {}
             had_presence_match = False
+            failed_status = None
+
             if not presence_entity:
                 for light in lights:
                     new_results[light] = self._error("presence_not_configured")
             else:
-                presence_cache = {}
                 try:
-                    for day in candidate_days(today):
+                    for day in candidate_days(
+                        today,
+                        max_weeks_away=self.settings["max_weeks_away"],
+                        min_weeks_from_today=self.settings["min_weeks_from_today"],
+                        use_recent_weeks=self.settings["use_recent_weeks"],
+                    ):
                         if generation != self._generation:
                             return
-                        pending = [light for light in lights if light not in new_results]
+                        pending = lights if same_day else [
+                            light for light in lights if light not in new_results
+                        ]
                         if not pending:
                             break
-                        # Query each candidate day once for the remaining lights.
                         try:
                             events, runs = await self.history.async_day(
                                 day, zone, [presence_entity, *pending]
                             )
                         except Exception:
                             _LOGGER.exception("Recorder history unavailable on %s", day)
-                            for light in pending:
-                                new_results[light] = self._error("recorder_unavailable")
+                            failed_status = "recorder_unavailable"
                             break
-                        presence = presence_cache.get(day)
-                        if presence is None:
-                            presence = reconstruct(
-                                day,
-                                zone,
-                                events.get(presence_entity, ()),
-                                runs,
-                                lambda value: normalize_presence(value, invert) is True,
-                            )
-                            presence_cache[day] = presence
+                        presence = reconstruct(
+                            day,
+                            zone,
+                            events.get(presence_entity, ()),
+                            runs,
+                            lambda value: normalize_presence(value, invert) is True,
+                        )
                         if not presence.valid:
                             continue
                         had_presence_match = True
+                        candidate_results: dict[str, dict[str, Any]] = {}
                         for light in pending:
                             try:
                                 timeline = reconstruct(
@@ -212,7 +232,7 @@ class LightAwayRuntime:
                                     lambda value: value in ("on", "off"),
                                 )
                                 if timeline.valid:
-                                    new_results[light] = {
+                                    candidate_results[light] = {
                                         "copy_day": day.isoformat(),
                                         "timeline": timeline,
                                         "desired": None,
@@ -220,15 +240,27 @@ class LightAwayRuntime:
                                     }
                             except Exception:
                                 _LOGGER.exception("History calculation failed for %s", light)
+                                if same_day:
+                                    candidate_results = {}
+                                    break
                                 new_results[light] = self._error("calculation_error")
+                        if same_day:
+                            if len(candidate_results) == len(lights):
+                                new_results = candidate_results
+                                break
+                        else:
+                            new_results.update(candidate_results)
                 except Exception:
                     _LOGGER.exception("Unexpected LightAway rebuild failure")
-                    for light in lights:
-                        new_results.setdefault(light, self._error("calculation_error"))
+                    failed_status = "calculation_error"
+
             for light in lights:
                 new_results.setdefault(
                     light,
-                    self._error("insufficient_history" if had_presence_match else "no_copy_day"),
+                    self._error(
+                        failed_status
+                        or ("insufficient_history" if had_presence_match else "no_copy_day")
+                    ),
                 )
             if generation != self._generation:
                 return

@@ -48,6 +48,11 @@ class LightAwayCalculated(BinarySensorEntity):
         self.runtime = runtime
         self.light = light
         self._attr_unique_id = unique_id
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, runtime.entry_id)},
+            "name": "LightAway",
+            "manufacturer": "LightAway",
+        }
         self._attr_name = f"{light.split('.', 1)[-1]} LightAway"
 
     async def async_added_to_hass(self):
