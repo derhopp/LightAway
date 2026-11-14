@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 import logging
 from typing import Any
 
@@ -14,11 +14,30 @@ from homeassistant.helpers.event import async_track_state_change_event, async_tr
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .const import DEFAULT_OPTIONS, STORE_KEY, STORE_VERSION, UPDATE_SIGNAL
+from .const import (
+    BOOLEAN_OPTIONS,
+    DEFAULT_OPTIONS,
+    PRESENCE_DOMAINS,
+    STORE_KEY,
+    STORE_VERSION,
+    UPDATE_SIGNAL,
+)
 from .model import candidate_days, desired_state, normalize_presence, reconstruct
 from .recorder_history import RecorderHistory
 
 _LOGGER = logging.getLogger(__name__)
+
+# Bounded number of rejected candidate days kept for the diagnostics payload.
+MAX_CANDIDATES = 12
+LIGHT_DOMAINS = frozenset({"light"})
+
+
+def _is_entity(value: object, domains: frozenset[str]) -> bool:
+    """Return True for a syntactically valid ``domain.object_id`` entity ID."""
+    if not isinstance(value, str) or value.count(".") != 1:
+        return False
+    domain, object_id = value.split(".")
+    return domain in domains and bool(object_id)
 
 
 class LightAwayRuntime:
@@ -34,12 +53,20 @@ class LightAwayRuntime:
         self._rebuild_lock = asyncio.Lock()
         self._control_lock = asyncio.Lock()
         self._generation = 0
-        self._day = None
+        # Day and time zone the cached results were computed for. A time zone
+        # change moves every local midnight, so the cache is invalid then too.
+        self._context: tuple[date, str] | None = None
         self._last_rebuild_at = None
         self._callbacks: list = []
-        self._add_sensors = None
+        self._cancel_entities = None
         self._ready = False
         self._rebuild_task: asyncio.Task | None = None
+        self._candidates: list[dict[str, Any]] = []
+        self._repaired_settings: list[str] = []
+
+    def _context_of(self) -> tuple[date, str]:
+        """Return the day and time zone the cached results depend on."""
+        return (dt_util.now().date(), self.hass.config.time_zone)
 
     async def async_load(self) -> None:
         saved = await self.store.async_load()
@@ -51,9 +78,17 @@ class LightAwayRuntime:
             value = self.settings.get(key)
             if type(value) is not int or not minimum <= value <= 52:
                 self.settings[key] = DEFAULT_OPTIONS[key]
-        for key in ("use_recent_weeks", "just_same_copy_day"):
+                self._repaired_settings.append(key)
+        for key in BOOLEAN_OPTIONS:
             if type(self.settings.get(key)) is not bool:
                 self.settings[key] = DEFAULT_OPTIONS[key]
+                self._repaired_settings.append(key)
+        # A stored range that excludes every recent week would silently disable
+        # the fallback the user configured, so reset both bounds to the defaults.
+        if self.settings["min_weeks_from_today"] > self.settings["max_weeks_away"]:
+            self.settings["min_weeks_from_today"] = DEFAULT_OPTIONS["min_weeks_from_today"]
+            self.settings["max_weeks_away"] = DEFAULT_OPTIONS["max_weeks_away"]
+            self._repaired_settings.extend(("min_weeks_from_today", "max_weeks_away"))
         self._callbacks.append(
             async_track_time_interval(self.hass, self._tick, timedelta(seconds=30))
         )
@@ -70,15 +105,23 @@ class LightAwayRuntime:
     async def async_unload(self) -> None:
         self._generation += 1
         self._ready = False
-        if self._rebuild_task and not self._rebuild_task.done():
-            self._rebuild_task.cancel()
+        task = self._rebuild_task
+        self._rebuild_task = None
+        if task is not None and not task.done():
+            task.cancel()
+        # The per-entity state listener is not in _callbacks: without this the
+        # unloaded runtime keeps receiving light events and schedules work.
+        if self._cancel_entities is not None:
+            self._cancel_entities()
+            self._cancel_entities = None
         for cancel in self._callbacks:
             cancel()
         self._callbacks.clear()
 
     def _track_entities(self) -> None:
-        if hasattr(self, "_cancel_entities") and self._cancel_entities:
+        if self._cancel_entities is not None:
             self._cancel_entities()
+            self._cancel_entities = None
         entities = [*self.settings["lights"]]
         if self.settings["presence"]:
             entities.append(self.settings["presence"])
@@ -118,8 +161,10 @@ class LightAwayRuntime:
 
     @callback
     def _tick(self, _now: datetime) -> None:
-        today = dt_util.now().date()
-        if self._day != today:
+        # Rebuild when the local day *or* the configured time zone changed: a
+        # zone change moves every copy-day boundary, so cached results computed
+        # in the previous zone must not be replayed.
+        if self._context != self._context_of():
             if self._rebuild_task is None or self._rebuild_task.done():
                 self.request_rebuild()
         elif (
@@ -156,10 +201,22 @@ class LightAwayRuntime:
             value = new_settings[key]
             if type(value) is not int or not minimum <= value <= 52:
                 raise ValueError(f"{key} must be an integer from {minimum} to 52")
-        for key in ("use_recent_weeks", "just_same_copy_day"):
+        for key in BOOLEAN_OPTIONS:
             if type(new_settings[key]) is not bool:
                 raise ValueError(f"{key} must be a boolean")
-        new_settings["lights"] = list(dict.fromkeys(new_settings["lights"]))
+        presence = new_settings["presence"]
+        if presence is not None and not _is_entity(presence, PRESENCE_DOMAINS):
+            raise ValueError("presence must be a binary_sensor, switch or input_boolean entity")
+        lights = new_settings["lights"]
+        if not isinstance(lights, list) or any(
+            not _is_entity(light, LIGHT_DOMAINS) for light in lights
+        ):
+            raise ValueError("lights must be a list of light entities")
+        new_settings["lights"] = list(dict.fromkeys(lights))
+        # Bounds that exclude every recent week would silently disable the
+        # fallback; equal bounds are valid and select exactly that week.
+        if new_settings["min_weeks_from_today"] > new_settings["max_weeks_away"]:
+            raise ValueError("min_weeks_from_today must not be greater than max_weeks_away")
         if new_settings == self.settings:
             return
         changed_entities = any(
@@ -176,12 +233,14 @@ class LightAwayRuntime:
         """Select valid source dates in priority order, independently or jointly."""
         async with self._rebuild_lock:
             today = dt_util.now().date()
-            zone = dt_util.get_time_zone(self.hass.config.time_zone)
+            zone_name = self.hass.config.time_zone
+            zone = dt_util.get_time_zone(zone_name)
             presence_entity = self.settings["presence"]
             lights = list(self.settings["lights"])
             invert = self.settings["invert"]
             same_day = self.settings.get("just_same_copy_day", False)
             new_results: dict[str, dict[str, Any]] = {}
+            evidence: list[dict[str, Any]] = []
             had_presence_match = False
             failed_status = None
 
@@ -220,6 +279,16 @@ class LightAwayRuntime:
                             runs,
                             lambda value: normalize_presence(value, invert) is True,
                         )
+                        # Keep bounded evidence so a rejected candidate can be
+                        # explained in the downloadable diagnostics.
+                        candidate: dict[str, Any] = {
+                            "day": day.isoformat(),
+                            "presence_seconds": round(presence.seconds),
+                            "presence_observed_seconds": round(presence.observed_seconds),
+                            "lights": {},
+                        }
+                        if len(evidence) < MAX_CANDIDATES:
+                            evidence.append(candidate)
                         if not presence.valid:
                             continue
                         had_presence_match = True
@@ -233,6 +302,10 @@ class LightAwayRuntime:
                                     runs,
                                     lambda value: value in ("on", "off"),
                                 )
+                                candidate["lights"][light] = {
+                                    "seconds": round(timeline.seconds),
+                                    "valid": timeline.valid,
+                                }
                                 if timeline.valid:
                                     candidate_results[light] = {
                                         "copy_day": day.isoformat(),
@@ -267,7 +340,8 @@ class LightAwayRuntime:
             if generation != self._generation:
                 return
             self.results = new_results
-            self._day = today
+            self._candidates = evidence
+            self._context = (today, zone_name)
             self._last_rebuild_at = dt_util.utcnow()
             self._ready = True
             await self.async_update()
@@ -285,6 +359,16 @@ class LightAwayRuntime:
         """Update cached desired states then reconcile only while safe."""
         zone = dt_util.get_time_zone(self.hass.config.time_zone)
         now = dt_util.now()
+        if (
+            self._ready
+            and self._context is not None
+            and self._context != (now.date(), self.hass.config.time_zone)
+        ):
+            # Copy days were computed for another day or time zone, so the cached
+            # timeline no longer matches the local wall clock. Rebuild instead of
+            # replaying it; request_rebuild() marks the results unsafe meanwhile.
+            self.request_rebuild()
+            return
         if self._ready:
             for light, result in self.results.items():
                 timeline = result.get("timeline")
@@ -357,4 +441,37 @@ class LightAwayRuntime:
             "presence_available": presence_available,
             "ready": self._ready,
             "lights": items,
+        }
+
+    def diagnostics(self) -> dict[str, Any]:
+        """Return a JSON-safe report for Home Assistant diagnostics downloads."""
+        context = (
+            {"day": self._context[0].isoformat(), "time_zone": self._context[1]}
+            if self._context
+            else None
+        )
+        results = []
+        for entity in self.settings["lights"]:
+            result = self.results.get(entity, self._error("recalculating"))
+            timeline = result.get("timeline")
+            results.append(
+                {
+                    "entity_id": entity,
+                    "copy_day": result.get("copy_day"),
+                    "status": result.get("status"),
+                    "desired": result.get("desired"),
+                    "transitions": len(timeline.transitions) if timeline else 0,
+                    "qualified_seconds": round(timeline.seconds) if timeline else None,
+                    "observed_seconds": round(timeline.observed_seconds) if timeline else None,
+                }
+            )
+        return {
+            "ready": self._ready,
+            "generation": self._generation,
+            "computed_for": context,
+            "settings": dict(self.settings),
+            "presence": self.presence(),
+            "repaired_settings": list(dict.fromkeys(self._repaired_settings)),
+            "lights": results,
+            "candidates": [dict(candidate) for candidate in self._candidates],
         }

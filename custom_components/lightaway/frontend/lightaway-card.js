@@ -6,6 +6,7 @@ const translations = {
     minWeeks: "Min. Weeks from today", maxWeeks: "Max. Weeks away",
     recentWeeks: "Use recent Weeks", sameCopyDay: "Just same copy day",
     invalidWeeks: "Enter a valid whole number in the allowed range.",
+    invalidRange: "Minimum weeks must not be greater than maximum weeks.",
     source: "Light", date: "Copy day", actual: "Actual", desired: "Desired",
     status: "Status", saved: "Configuration saved automatically",
     choose: "Search by name or entity ID", empty: "No lights selected",
@@ -32,6 +33,7 @@ const translations = {
     minWeeks: "Min. Wochen Abstand zu heute", maxWeeks: "Max. Wochen Abstand",
     recentWeeks: "Neuere Wochen verwenden", sameCopyDay: "Nur gemeinsamer Kopiertag",
     invalidWeeks: "Bitte eine ganze Zahl im erlaubten Bereich eingeben.",
+    invalidRange: "Min. Wochen dürfen nicht größer als Max. Wochen sein.",
     source: "Licht", date: "Kopiertag", actual: "Ist-Zustand", desired: "Soll-Zustand",
     status: "Status", saved: "Konfiguration automatisch gespeichert",
     choose: "Nach Name oder Entity-ID suchen", empty: "Keine Leuchten ausgewählt",
@@ -203,6 +205,7 @@ class LightAwayCard extends HTMLElement {
     enableWrap.append(enable,document.createTextNode(t.simulation));flex.append(enableWrap);
     card.append(flex);
     const ranges=this._el("div",{class:"flex"});
+    const bounds={min_weeks_from_today:"max_weeks_away",max_weeks_away:"min_weeks_from_today"};
     for(const [key,translation,minimum] of [
       ["min_weeks_from_today",t.minWeeks,1],
       ["max_weeks_away",t.maxWeeks,2],
@@ -219,6 +222,15 @@ class LightAwayCard extends HTMLElement {
         const number=Number(input.value);
         if(input.value.trim()===""||!Number.isInteger(number)||number<minimum||number>52){
           this._showMessage(t.invalidWeeks);
+          input.value=String(this._draftSettings?.[key]??settings[key]);
+          return;
+        }
+        // The recency window is empty unless min <= max, so refuse a range the
+        // server would reject instead of silently losing the fallback.
+        const other=this._draftSettings?.[bounds[key]]??settings[bounds[key]];
+        const inverted=key==="min_weeks_from_today"?number>other:number<other;
+        if(inverted){
+          this._showMessage(t.invalidRange);
           input.value=String(this._draftSettings?.[key]??settings[key]);
           return;
         }
