@@ -44,12 +44,14 @@ def runtime():
 
 def fake_history(valid):
     """Map dates to per-entity trustworthy 24-hour states."""
+
     async def day_history(day, zone, entities):
         start, end = local_day_bounds(day, zone)
         enabled = valid.get(day, ())
         events = {
             key: [TimedState(start, "on" if key == "binary_sensor.present" else "off")]
-            if key in enabled else []
+            if key in enabled
+            else []
             for key in entities
         }
         return events, [Coverage(start, end)]
@@ -69,16 +71,16 @@ def test_window_bounds_and_priority():
     annual = shift_year(TODAY)
     days = list(
         candidate_days(
-            TODAY, min_weeks_from_today=1, max_weeks_away=3,
+            TODAY,
+            min_weeks_from_today=1,
+            max_weeks_away=3,
             use_recent_weeks=True,
         )
     )
     yearly = [d for d in days if abs((d - annual).days) <= 21]
     assert len(yearly) >= 6
     assert all(abs((day - annual).days) <= 21 for day in yearly)
-    assert days[:len(yearly)] == sorted(
-        yearly, key=lambda day: (abs((day - annual).days), day)
-    )
+    assert days[: len(yearly)] == sorted(yearly, key=lambda day: (abs((day - annual).days), day))
     assert days[-3:] == [TODAY - timedelta(weeks=n) for n in (1, 2, 3)]
     assert all(d.weekday() == TODAY.weekday() and d < TODAY for d in days)
     assert len(days) == len(set(days))
@@ -87,9 +89,7 @@ def test_window_bounds_and_priority():
 def test_recent_window_disabled_or_invalid_range():
     with_recent = list(candidate_days(TODAY, max_weeks_away=8))
     no_recent = list(candidate_days(TODAY, max_weeks_away=8, use_recent_weeks=False))
-    invalid_range = list(
-        candidate_days(TODAY, max_weeks_away=4, min_weeks_from_today=4)
-    )
+    invalid_range = list(candidate_days(TODAY, max_weeks_away=4, min_weeks_from_today=4))
     assert len(with_recent) == len(no_recent) + 8
     assert len(invalid_range) == len(
         list(candidate_days(TODAY, max_weeks_away=4, use_recent_weeks=False))
@@ -101,14 +101,15 @@ async def test_anniversary_wins_over_recent_history():
     instance = runtime()
     anniversary = next(iter(candidate_days(TODAY)))
     recent = TODAY - timedelta(weeks=1)
-    instance.history.async_day = fake_history({
-        anniversary: {"binary_sensor.present", "light.a", "light.b"},
-        recent: {"binary_sensor.present", "light.a", "light.b"},
-    })
+    instance.history.async_day = fake_history(
+        {
+            anniversary: {"binary_sensor.present", "light.a", "light.b"},
+            recent: {"binary_sensor.present", "light.a", "light.b"},
+        }
+    )
     await rebuild(instance)
     assert all(
-        result["copy_day"] == anniversary.isoformat()
-        for result in instance.results.values()
+        result["copy_day"] == anniversary.isoformat() for result in instance.results.values()
     )
     assert instance.history.async_day.await_count == 1
 
@@ -117,14 +118,13 @@ async def test_anniversary_wins_over_recent_history():
 async def test_recent_history_used_after_anniversary_window_fails():
     instance = runtime()
     recent = TODAY - timedelta(weeks=1)
-    instance.history.async_day = fake_history({
-        recent: {"binary_sensor.present", "light.a", "light.b"},
-    })
-    await rebuild(instance)
-    assert all(
-        result["copy_day"] == recent.isoformat()
-        for result in instance.results.values()
+    instance.history.async_day = fake_history(
+        {
+            recent: {"binary_sensor.present", "light.a", "light.b"},
+        }
     )
+    await rebuild(instance)
+    assert all(result["copy_day"] == recent.isoformat() for result in instance.results.values())
     assert instance.history.async_day.await_count > 1
 
 
@@ -134,14 +134,14 @@ async def test_shared_and_independent_dates(same_day):
     instance = runtime()
     first, second = list(candidate_days(TODAY))[:2]
     instance.settings["just_same_copy_day"] = same_day
-    instance.history.async_day = fake_history({
-        first: {"binary_sensor.present", "light.a"},
-        second: {"binary_sensor.present", "light.a", "light.b"},
-    })
+    instance.history.async_day = fake_history(
+        {
+            first: {"binary_sensor.present", "light.a"},
+            second: {"binary_sensor.present", "light.a", "light.b"},
+        }
+    )
     await rebuild(instance)
-    assert instance.results["light.a"]["copy_day"] == (
-        second if same_day else first
-    ).isoformat()
+    assert instance.results["light.a"]["copy_day"] == (second if same_day else first).isoformat()
     assert instance.results["light.b"]["copy_day"] == second.isoformat()
 
 
@@ -151,10 +151,12 @@ async def test_shared_date_never_publishes_partial_matches():
     instance.settings["just_same_copy_day"] = True
     instance.settings["use_recent_weeks"] = False
     first, second = list(candidate_days(TODAY))[:2]
-    instance.history.async_day = fake_history({
-        first: {"binary_sensor.present", "light.a"},
-        second: {"binary_sensor.present", "light.b"},
-    })
+    instance.history.async_day = fake_history(
+        {
+            first: {"binary_sensor.present", "light.a"},
+            second: {"binary_sensor.present", "light.b"},
+        }
+    )
     await rebuild(instance)
     assert all(result["copy_day"] is None for result in instance.results.values())
     instance.hass.services.async_call.assert_not_awaited()

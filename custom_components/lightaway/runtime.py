@@ -198,9 +198,11 @@ class LightAwayRuntime:
                     ):
                         if generation != self._generation:
                             return
-                        pending = lights if same_day else [
-                            light for light in lights if light not in new_results
-                        ]
+                        pending = (
+                            lights
+                            if same_day
+                            else [light for light in lights if light not in new_results]
+                        )
                         if not pending:
                             break
                         try:

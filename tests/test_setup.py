@@ -25,4 +25,7 @@ async def test_config_flow_and_global_switch(recorder_db_url, hass, recorder_moc
     assert entity is not None and entity.device_id is not None
     device = dr.async_get(hass).async_get(entity.device_id)
     assert device is not None
-    assert ("lightaway", hass.config_entries.async_entries(DOMAIN)[0].entry_id) in device.identifiers
+    assert (
+        "lightaway",
+        hass.config_entries.async_entries(DOMAIN)[0].entry_id,
+    ) in device.identifiers

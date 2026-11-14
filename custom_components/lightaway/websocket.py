@@ -54,9 +54,14 @@ def async_register(hass: HomeAssistant) -> None:
         changes = {
             key: msg[key]
             for key in (
-                "presence", "invert", "lights", "enabled",
-                "min_weeks_from_today", "max_weeks_away",
-                "use_recent_weeks", "just_same_copy_day",
+                "presence",
+                "invert",
+                "lights",
+                "enabled",
+                "min_weeks_from_today",
+                "max_weeks_away",
+                "use_recent_weeks",
+                "just_same_copy_day",
             )
             if key in msg
         }
