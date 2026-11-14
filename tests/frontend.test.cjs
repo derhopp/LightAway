@@ -190,7 +190,7 @@ test("combined light list includes copy day, actual, desired, status, and a dele
   assert.equal(remove.attrs["aria-label"],card.t.remove+": Kitchen Main");
   assert.equal(remove.children[0].attrs.icon,"mdi:delete-outline");
   remove.handlers.click();
-  assert.deepEqual(saved,{lights:["light.b"]});
+  assert.deepEqual(Array.from(saved.lights),["light.b"]);
   assert.equal(remove.disabled,true);
 });
 
