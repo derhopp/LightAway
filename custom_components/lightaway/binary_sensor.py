@@ -1,6 +1,7 @@
 """Read-only calculated light states."""
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
+from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_registry import async_get as async_get_registry
 
@@ -11,6 +12,12 @@ async def async_setup_entry(hass, entry, async_add_entities):
     runtime = hass.data[DOMAIN][entry.entry_id]
     existing = {}
 
+    # Both listeners below must be callbacks. Home Assistant dispatches a plain
+    # function in an executor thread, where ``async_add_entities`` (a coroutine)
+    # can never be awaited and ``async_write_ha_state`` is not thread safe.
+    # Without the decorator no sensor is created for a newly configured light
+    # and every update raises a thread safety error instead of writing state.
+    @callback
     def add_missing():
         new = []
         registry = async_get_registry(hass)
@@ -24,8 +31,9 @@ async def async_setup_entry(hass, entry, async_add_entities):
                 sensor = LightAwayCalculated(runtime, light, unique)
                 existing[unique] = sensor
                 new.append(sensor)
-            else:
+            elif existing[unique].light != light:
                 existing[unique].light = light
+                existing[unique]._attr_name = f"{light.split('.', 1)[-1]} LightAway"
         for unique, sensor in list(existing.items()):
             if unique not in desired:
                 if sensor.entity_id and registry.async_get(sensor.entity_id):
@@ -58,6 +66,7 @@ class LightAwayCalculated(BinarySensorEntity):
     async def async_added_to_hass(self):
         self.async_on_remove(async_dispatcher_connect(self.hass, UPDATE_SIGNAL, self._changed))
 
+    @callback
     def _changed(self):
         if self.light not in self.runtime.settings["lights"]:
             registry = async_get_registry(self.hass)
