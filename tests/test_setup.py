@@ -2,13 +2,13 @@
 
 import pytest
 
-pytestmark = pytest.mark.recorder_db
-
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.setup import async_setup_component
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from custom_components.lightaway.const import DOMAIN
+
+pytestmark = pytest.mark.recorder_db
 
 
 @pytest.mark.asyncio
