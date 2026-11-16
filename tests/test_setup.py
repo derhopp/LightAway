@@ -8,6 +8,8 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from custom_components.lightaway.const import DOMAIN
 
+pytestmark = pytest.mark.recorder_db
+
 
 @pytest.mark.asyncio
 async def test_config_flow_and_global_switch(recorder_db_url, hass, recorder_mock):

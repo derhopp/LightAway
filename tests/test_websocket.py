@@ -79,3 +79,27 @@ async def test_configure_requires_actual_websocket_admin_before_saving():
     await tasks.pop()
     runtime.async_configure.assert_awaited_once_with({"presence": "binary_sensor.holiday"})
     connection.send_result.assert_called_once_with(5, runtime.snapshot.return_value)
+
+
+@pytest.mark.asyncio
+async def test_rejected_configuration_returns_invalid_config():
+    runtime = MagicMock()
+    runtime.async_configure = AsyncMock(side_effect=ValueError("lights must be light entities"))
+    hass = MagicMock()
+    hass.data = {DOMAIN: {"instance": runtime}}
+    connection = MagicMock()
+    connection.user = SimpleNamespace(is_admin=True)
+    tasks = []
+    hass.async_create_background_task.side_effect = lambda coro, name, **kw: tasks.append(coro)
+    with patch(
+        "custom_components.lightaway.websocket.websocket_api.async_register_command"
+    ) as register:
+        async_register(hass)
+    configure = register.call_args_list[1].args[1]
+    configure(hass, connection, {"id": 9, "type": "lightaway/configure", "lights": ["light.test"]})
+    assert len(tasks) == 1
+    await tasks.pop()
+    connection.send_error.assert_called_once_with(
+        9, "invalid_config", "lights must be light entities"
+    )
+    connection.send_result.assert_not_called()
