@@ -21,6 +21,8 @@ on matching weekdays near last year, with an optional recent-weeks fallback.
 - Independent Home Assistant switches for simulation, presence inversion, recent weeks, and shared copy day
 - English and German user interface, automatically selected by user language
 - No fixed limit on configured lights
+- Diagnostics download covering the full configured copy-day search with proven Recorder coverage
+- Recalculation after a Home Assistant time zone change
 - Published releases v0.1.0, v0.2.0 and v0.3.0; new releases require explicit authorization
 
 ## Requirements
@@ -122,6 +124,8 @@ and **Use recent Weeks** is enabled and **Max. Weeks away** is greater than
 **Min. Weeks from today**, search exactly 1-week-spaced dates from
 today minus **Min. Weeks from today** through today minus **Max. Weeks away**
 weeks (both endpoints inclusive), nearest first. Otherwise skip this priority.
+If Min is equal to or greater than Max, only the recent fallback is omitted;
+the annual search still applies and these settings are valid.
 
 **Priority 3 – no eligible day.** If no candidate qualifies, LightAway
 reports no copy day and does not switch the affected lights.
@@ -168,7 +172,10 @@ global switch is enabled or disabled. Invalid historical playback values
 reuse the preceding valid state. If none exists at the target time,
 playback defaults to off **only after a reference day passed validation**.
 
-Wall-clock time in the Home Assistant local timezone is used. Recorded
+Wall-clock time in the Home Assistant local timezone is used. Changing the
+configured time zone invalidates cached copy days and triggers a rebuild;
+previously calculated source days are never replayed against the new zone.
+Recorded
 interval durations are computed using UTC timestamps, including for 23- and
 25-hour days. On repeated fall-back clock hours, matching fold occurrences
 are selected when present; on a normal day the first matching occurrence
@@ -191,8 +198,13 @@ deleted or unavailable lights, calculation errors and service call failures.
 Every light is assessed independently. Check **Settings → System → Logs**
 for detailed tracebacks.
 
-For missing reference days, verify the full year of detailed Recorder state
-retention for both the presence entity and the light. A Recorder restart
+For missing reference days, use **Settings → Devices & services → LightAway →
+Download diagnostics**. The JSON report lists examined copy dates, the
+search window (anniversary or recent), verified presence and light-state
+coverage, and the number of candidates examined or omitted. The report
+records at most 160 candidates, enough for the full supported search range.
+It contains presence details and entity IDs: review before sharing publicly.
+Also verify detailed Recorder retention for the presence entity and each light. A Recorder restart
 without a reconfirming state may leave an unverifiable interval.
 A missing presence sensor must be restored or replaced before any switching
 can occur. Transient Recorder failures are retried on the next daily
