@@ -23,7 +23,7 @@ on matching weekdays near last year, with an optional recent-weeks fallback.
 - No fixed limit on configured lights
 - Diagnostics download covering the full configured copy-day search with proven Recorder coverage
 - Recalculation after a Home Assistant time zone change
-- Published releases v0.1.0, v0.2.0 and v0.3.0; new releases require explicit authorization
+- Published releases v0.1.0, v0.2.0, v0.3.0 and v0.4.0; new releases require explicit authorization
 
 ## Requirements
 
@@ -41,7 +41,7 @@ Recorder API and SQLAlchemy abstractions, not direct SQLite connections.
 
 1. In HACS, open the integration repositories list and add
    `https://github.com/derhopp/LightAway` as a **custom integration repository**.
-2. Install the latest published LightAway release (`v0.3.0`). The `main` branch is for development.
+2. Install the latest published LightAway release (`v0.4.0`). The `main` branch is for development.
 3. Restart Home Assistant.
 4. Open **Settings → Devices & services → Add integration → LightAway**.
 5. In your dashboard, add a **Manual** card:
