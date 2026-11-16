@@ -135,5 +135,7 @@ async def test_maximum_week_window_keeps_anniversary_and_recent_evidence():
     assert report["candidates_omitted"] == 0
     assert expected <= MAX_CANDIDATES
     assert report["candidates"][0]["search_window"] == "anniversary"
-    assert report["candidates"][-1]["search_window"] == "recent"
+    # At 52 weeks, recent days overlap the annual window and are deduplicated.
+    assert report["candidates"][-1]["search_window"] == "anniversary"
+    assert len({candidate["day"] for candidate in report["candidates"]}) == expected
     json.dumps(report)

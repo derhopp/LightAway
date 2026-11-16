@@ -137,18 +137,16 @@ async def test_unload_cancels_every_listener(runtime):
     assert sorted(cancelled) == ["bus", "entities", "tick"]
 
 
-
 @pytest.mark.asyncio
 async def test_unload_cancels_a_running_rebuild(runtime):
-    task = AsyncMock()
-    task.done = lambda: False
+    task = MagicMock()
+    task.done.return_value = False
     runtime._rebuild_task = task
     runtime._cancel_entities = None
     runtime._callbacks = []
     await runtime.async_unload()
     task.cancel.assert_called_once()
     assert runtime._rebuild_task is None
-
 
 
 @pytest.mark.asyncio
@@ -169,7 +167,6 @@ async def test_configure_rejects_foreign_entities(runtime, changes, message):
     runtime.store.async_save.assert_not_awaited()
 
 
-
 def test_tick_rebuilds_after_a_time_zone_change(runtime):
     runtime.request_rebuild = MagicMock()
     runtime.request_update = MagicMock()
@@ -182,7 +179,6 @@ def test_tick_rebuilds_after_a_time_zone_change(runtime):
         runtime._tick(None)
     runtime.request_rebuild.assert_called_once()
     runtime.request_update.assert_not_called()
-
 
 
 def test_tick_only_updates_when_the_context_matches(runtime):
@@ -199,7 +195,6 @@ def test_tick_only_updates_when_the_context_matches(runtime):
     runtime.request_rebuild.assert_not_called()
 
 
-
 @pytest.mark.asyncio
 async def test_update_never_replays_a_stale_context(runtime):
     runtime.request_rebuild = MagicMock()
@@ -211,7 +206,6 @@ async def test_update_never_replays_a_stale_context(runtime):
         await runtime.async_update()
     runtime.request_rebuild.assert_called_once()
     runtime.hass.services.async_call.assert_not_awaited()
-
 
 
 def test_registry_rename_migrates_the_selection(runtime):
@@ -271,9 +265,10 @@ async def test_load_repairs_invalid_values_and_persists_migration(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_equal_weeks_do_not_enable_recent_history(runtime):
+    from datetime import timedelta
+
     from custom_components.lightaway.model import candidate_days
 
-    from datetime import timedelta
     today = date(2026, 11, 13)
     only_year = list(candidate_days(today, max_weeks_away=4, use_recent_weeks=False))
     equal = list(candidate_days(today, max_weeks_away=4, min_weeks_from_today=4))
