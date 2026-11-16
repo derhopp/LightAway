@@ -241,3 +241,9 @@ async def test_setting_switches_persist_and_trigger_recalculation():
         assert entity.is_on is initial
     assert instance.store.async_save.await_count >= 6
     assert instance.request_rebuild.call_count >= 6
+
+
+def test_invalid_or_equal_bounds_do_not_add_recent_candidates():
+    yearly = list(candidate_days(TODAY, max_weeks_away=4, use_recent_weeks=False))
+    assert list(candidate_days(TODAY, min_weeks_from_today=4, max_weeks_away=4)) == yearly
+    assert list(candidate_days(TODAY, min_weeks_from_today=5, max_weeks_away=4)) == yearly
