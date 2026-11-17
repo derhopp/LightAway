@@ -68,7 +68,10 @@ async def test_diagnostics_explain_every_rejected_candidate():
     assert payload["lights"][0]["status"] == "insufficient_history"
     first = payload["candidates"][0]
     assert first["presence_seconds"] == 23 * 3600 or first["presence_seconds"] == 24 * 3600
-    assert first["lights"]["light.a"] == {"seconds": 0, "valid": False}
+    assert first["lights"]["light.a"]["seconds"] == 0
+    assert first["lights"]["light.a"]["valid"] is False
+    assert first["lights"]["light.a"]["in_day_records"] == 0
+    assert first["lights"]["light.a"]["carried_state_recorded_at"] is None
     json.dumps(payload)
 
 
