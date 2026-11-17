@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 import logging
 import re
 from typing import Any
@@ -23,7 +23,15 @@ from .const import (
     STORE_VERSION,
     UPDATE_SIGNAL,
 )
-from .model import candidate_days, desired_state, normalize_presence, reconstruct, shift_year
+from .model import (
+    TimedState,
+    candidate_days,
+    desired_state,
+    local_day_bounds,
+    normalize_presence,
+    reconstruct,
+    shift_year,
+)
 from .recorder_history import RecorderHistory
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,6 +47,30 @@ def _is_entity(value: object, domains: frozenset[str]) -> bool:
         return False
     domain, object_id = value.split(".")
     return domain in domains and re.fullmatch(r"[a-z0-9_]+", object_id) is not None
+
+
+def _record_provenance(
+    day: date, zone, samples: list[TimedState] | tuple[TimedState, ...]
+) -> dict[str, Any]:
+    """Explain whether a candidate day has its own Recorder samples.
+
+    A Recorder state last updated days earlier may correctly establish a
+    stable state for a later day. The earlier *state* is carried into local
+    midnight, but events from that earlier day must never be replayed.
+    """
+    start, end = local_day_bounds(day, zone)
+    in_day = 0
+    latest_seed: datetime | None = None
+    for sample in samples:
+        instant = sample.at.astimezone(UTC)
+        if start <= instant < end:
+            in_day += 1
+        elif instant < start and (latest_seed is None or instant > latest_seed):
+            latest_seed = instant
+    return {
+        "in_day_records": in_day,
+        "carried_state_recorded_at": latest_seed.isoformat() if latest_seed else None,
+    }
 
 
 class LightAwayRuntime:
@@ -67,8 +99,10 @@ class LightAwayRuntime:
         self._repaired_settings: list[str] = []
 
     def _context_of(self) -> tuple[date, str]:
-        """Return the day and time zone the cached results depend on."""
-        return (dt_util.now().date(), self.hass.config.time_zone)
+        """Return the actual local date in the configured HA time zone."""
+        zone_name = self.hass.config.time_zone
+        zone = dt_util.get_time_zone(zone_name)
+        return (dt_util.now().astimezone(zone).date(), zone_name)
 
     async def async_load(self) -> None:
         saved = await self.store.async_load()
@@ -226,9 +260,9 @@ class LightAwayRuntime:
     async def _rebuild(self, generation: int) -> None:
         """Select valid source dates in priority order, independently or jointly."""
         async with self._rebuild_lock:
-            today = dt_util.now().date()
             zone_name = self.hass.config.time_zone
             zone = dt_util.get_time_zone(zone_name)
+            today = dt_util.now().astimezone(zone).date()
             presence_entity = self.settings["presence"]
             lights = list(self.settings["lights"])
             invert = self.settings["invert"]
@@ -270,10 +304,11 @@ class LightAwayRuntime:
                             _LOGGER.exception("Recorder history unavailable on %s", day)
                             failed_status = "recorder_unavailable"
                             break
+                        presence_samples = events.get(presence_entity, ())
                         presence = reconstruct(
                             day,
                             zone,
-                            events.get(presence_entity, ()),
+                            presence_samples,
                             runs,
                             lambda value: normalize_presence(value, invert) is True,
                         )
@@ -288,6 +323,9 @@ class LightAwayRuntime:
                             "presence_seconds": round(presence.seconds),
                             "presence_observed_seconds": round(presence.observed_seconds),
                             "presence_valid": presence.valid,
+                            "presence_recording": _record_provenance(
+                                day, zone, presence_samples
+                            ),
                             "lights": {},
                         }
                         if len(evidence) < MAX_CANDIDATES:
@@ -298,16 +336,19 @@ class LightAwayRuntime:
                         candidate_results: dict[str, dict[str, Any]] = {}
                         for light in pending:
                             try:
+                                light_samples = events.get(light, ())
                                 timeline = reconstruct(
                                     day,
                                     zone,
-                                    events.get(light, ()),
+                                    light_samples,
                                     runs,
                                     lambda value: value in ("on", "off"),
                                 )
+                                provenance = _record_provenance(day, zone, light_samples)
                                 candidate["lights"][light] = {
                                     "seconds": round(timeline.seconds),
                                     "valid": timeline.valid,
+                                    **provenance,
                                 }
                                 if timeline.valid:
                                     candidate_results[light] = {
@@ -315,6 +356,7 @@ class LightAwayRuntime:
                                         "timeline": timeline,
                                         "desired": None,
                                         "status": "ok",
+                                        **provenance,
                                     }
                             except Exception:
                                 _LOGGER.exception("History calculation failed for %s", light)
@@ -362,7 +404,7 @@ class LightAwayRuntime:
     async def async_update(self) -> None:
         """Update cached desired states then reconcile only while safe."""
         zone = dt_util.get_time_zone(self.hass.config.time_zone)
-        now = dt_util.now()
+        now = dt_util.now().astimezone(zone)
         if (
             self._ready
             and self._context is not None
@@ -469,6 +511,10 @@ class LightAwayRuntime:
                     "transitions": len(timeline.transitions) if timeline else 0,
                     "qualified_seconds": round(timeline.seconds) if timeline else None,
                     "observed_seconds": round(timeline.observed_seconds) if timeline else None,
+                    "in_day_records": result.get("in_day_records"),
+                    "carried_state_recorded_at": result.get(
+                        "carried_state_recorded_at"
+                    ),
                 }
             )
         return {
