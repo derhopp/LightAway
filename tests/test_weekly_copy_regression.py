@@ -133,7 +133,11 @@ async def test_week_one_selected_and_replayed_even_if_week_two_has_gap(
         assert result["timeline"].transitions[0].at == start
 
     diagnostics = runtime.diagnostics()
-    winner = next(candidate for candidate in diagnostics["candidates"] if candidate["day"] == copy_date.isoformat())
+    winner = next(
+        candidate
+        for candidate in diagnostics["candidates"]
+        if candidate["day"] == copy_date.isoformat()
+    )
     assert winner["lights"]["light.a"]["in_day_records"] == 2
     assert winner["lights"]["light.a"]["carried_state_recorded_at"] is not None
 

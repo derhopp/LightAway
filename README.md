@@ -149,6 +149,22 @@ never count toward qualification. Today and future dates are excluded.
 
 ## Recorder history reconstruction and data quality
 
+**What a copy day means:** With a minimum distance of one week, Monday
+16 November 2026 checks Monday **9 November 2026** before Monday 2 November;
+Tuesday 17 November checks Tuesday **10 November 2026** before Tuesday
+3 November. The annual candidate window has higher priority only if its
+history qualifies. Day boundaries and local weekdays are always calculated in
+the configured Home Assistant time zone.
+
+A Recorder state last changed on 2 or 3 November can still be the proven
+**starting state** of 9 or 10 November if the same Recorder run confirms
+continuity. This is not a replay of the earlier date: only transitions during
+the actual selected copy day are replayed. The diagnostic download now includes
+`in_day_records` and `carried_state_recorded_at` for both presence and each
+candidate light, so you can distinguish real events on the selected day from
+carried-forward states. A Recorder gap is never bridged merely by an older
+state; gaps must be evaluated on the selected day itself.
+
 Recorder stores state changes, not periodic samples. An entire day can be
 valid without any changes **when recording coverage and a preceding real
 state within the same Recorder run establish continuity**. The algorithm

@@ -323,9 +323,7 @@ class LightAwayRuntime:
                             "presence_seconds": round(presence.seconds),
                             "presence_observed_seconds": round(presence.observed_seconds),
                             "presence_valid": presence.valid,
-                            "presence_recording": _record_provenance(
-                                day, zone, presence_samples
-                            ),
+                            "presence_recording": _record_provenance(day, zone, presence_samples),
                             "lights": {},
                         }
                         if len(evidence) < MAX_CANDIDATES:
@@ -512,9 +510,7 @@ class LightAwayRuntime:
                     "qualified_seconds": round(timeline.seconds) if timeline else None,
                     "observed_seconds": round(timeline.observed_seconds) if timeline else None,
                     "in_day_records": result.get("in_day_records"),
-                    "carried_state_recorded_at": result.get(
-                        "carried_state_recorded_at"
-                    ),
+                    "carried_state_recorded_at": result.get("carried_state_recorded_at"),
                 }
             )
         return {
