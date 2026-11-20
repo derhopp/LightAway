@@ -1,0 +1,46 @@
+name: Publish LightAway v0.4.1b2 (one-time)
+on:
+  workflow_run:
+    workflows: ["LightAway CI"]
+    types: [completed]
+permissions:
+  contents: write
+jobs:
+  prerelease:
+    if: >-
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_commit.message == 'chore(prerelease): prepare v0.4.1b2'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - name: Validate beta metadata
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          assert json.loads(Path("custom_components/lightaway/manifest.json").read_text())["version"] == "0.4.1b2"
+          notes = Path(".github/RELEASE_NOTES_0.4.1b2.md").read_text()
+          assert notes.startswith("# LightAway 0.4.1 Beta 2")
+          assert "Pre-release" in notes
+          assert Path("CHANGELOG.md").read_text().startswith("# LightAway 0.4.1 Beta 2")
+          PY
+      - name: Publish beta without changing latest stable
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if gh release view v0.4.1b2 >/dev/null 2>&1; then
+            echo "v0.4.1b2 already exists; skip."
+            exit 0
+          fi
+          gh release create v0.4.1b2 \
+            --target "$RELEASE_SHA" \
+            --title "LightAway 0.4.1 Beta 2" \
+            --notes-file .github/RELEASE_NOTES_0.4.1b2.md \
+            --prerelease \
+            --latest=false
