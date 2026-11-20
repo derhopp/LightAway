@@ -15,6 +15,7 @@ on matching weekdays near last year, with an optional recent-weeks fallback.
 - Prioritized anniversary and recent-week copy-day search, with optional shared date
 - 23 **elapsed** hours of proven presence and proven light state per reference day
 - Read-only calculated binary sensors, even when replay is switched off
+- Per-light diagnostic sensors for **Copy day** (date) and **Status** (text), accessible in Home Assistant history and automations
 - Persistent enable, inversion, light selection, and weekly date-window options
 - Strict fail-closed replay when presence or light state is unknown
 - Lovelace dashboard configuration and monitoring, desktop and mobile
@@ -97,10 +98,40 @@ presence blocks **all** light service calls.
 Add any number of `light.*` entries via the single native entity picker
 and the Add button below it. Delete a configured light with its trash icon.
 Each light gets a
-read-only LightAway binary sensor grouped with the global switch under the LightAway integration device. Removing a light from the configuration
-removes its calculated sensor from Home Assistant's entity registry.
+read-only LightAway binary sensor and two diagnostic sensors grouped with the
+global switch under the LightAway integration device. Removing a light from
+the configuration removes all three entities from Home Assistant's entity registry.
 A missing original light is shown as missing and is never operated.
 Registry renames are tracked to preserve existing selections where possible.
+
+## Per-light debugging sensors
+
+LightAway creates **three entities per selected light** under the LightAway
+integration device:
+
+- A binary sensor for the calculated desired on/off state (unchanged).
+- A **Copy day** sensor with Home Assistant's `date` device class. It exposes
+  the actual historical date (for example `2026-11-13`) or `unknown`
+  when no qualifying date exists or recalculation is underway.
+- A **Status** diagnostic sensor with values such as `ok`,
+  `recalculating`, `no_copy_day`, `insufficient_history`,
+  `recorder_unavailable` and `light_unavailable`. It remains readable
+  during recalculation, even when the copy date becomes unknown.
+
+Both diagnostic sensors are assigned to the integration's LightAway device and
+include a `source_entity` attribute. They update whenever LightAway sends a
+state change, including when configuration changes and after day-boundary
+rebuilds. Their unique IDs follow the same source entity-registry identity
+strategy as the calculated binary sensor; deleting a configured light removes
+its associated diagnostic entities. The sensors' names are based on the source
+light ID; the exact generated entity IDs may differ when Home Assistant's
+entity registry assigns a suffix.
+
+To investigate a night-time replay gap, chart the **Copy day**, **Status**
+and existing calculated binary sensor alongside the original light.
+`Status=ok` indicates a valid current calculation, not proof that every
+historical on/off transition has already been emitted. The global simulation
+switch can remain off during diagnosis.
 
 ## Copy-day selection and settings
 
