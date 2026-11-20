@@ -68,16 +68,13 @@ class LightAwayDebugSensor(SensorEntity):
             "manufacturer": "LightAway",
         }
         self._attr_name = (
-            f"{light.split('.', 1)[-1]} "
-            f"{'Copy day' if field == 'copy_day' else 'Status'}"
+            f"{light.split('.', 1)[-1]} {'Copy day' if field == 'copy_day' else 'Status'}"
         )
         if field == "copy_day":
             self._attr_device_class = SensorDeviceClass.DATE
 
     async def async_added_to_hass(self):
-        self.async_on_remove(
-            async_dispatcher_connect(self.hass, UPDATE_SIGNAL, self._changed)
-        )
+        self.async_on_remove(async_dispatcher_connect(self.hass, UPDATE_SIGNAL, self._changed))
 
     @callback
     def _changed(self):
@@ -103,7 +100,7 @@ class LightAwayDebugSensor(SensorEntity):
             return None
         try:
             return date.fromisoformat(value)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
 
     @property

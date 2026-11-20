@@ -20,9 +20,7 @@ async def setup_runtime(hass):
     hass.states.async_set("light.test_a", "off")
     hass.states.async_set("light.test_b", "off")
     assert await async_setup_component(hass, DOMAIN, {})
-    flow = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": "user"}
-    )
+    flow = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
     result = await hass.config_entries.flow.async_configure(flow["flow_id"], {})
     assert result["type"] is FlowResultType.CREATE_ENTRY
     await hass.async_block_till_done()
