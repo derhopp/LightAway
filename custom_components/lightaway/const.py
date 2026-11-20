@@ -1,7 +1,7 @@
 """LightAway constants."""
 
 DOMAIN = "lightaway"
-PLATFORMS = ["binary_sensor", "switch"]
+PLATFORMS = ["binary_sensor", "switch", "sensor"]
 STORE_VERSION = 1
 STORE_KEY = "lightaway.settings"
 UPDATE_SIGNAL = "lightaway_update"
