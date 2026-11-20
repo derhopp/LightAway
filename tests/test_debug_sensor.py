@@ -59,7 +59,7 @@ async def test_copy_day_and_status_entities_add_change_and_remove(hass):
     a_date = entities[f"{entry.entry_id}_light.test_a_copy_day"].entity_id
     a_status = entities[f"{entry.entry_id}_light.test_a_status"].entity_id
     assert hass.states.get(a_date).state == "unknown"
-    assert hass.states.get(a_status).state == "recalculating"
+    assert hass.states.get(a_status).state == "pending"
 
     runtime.results = {
         "light.test_a": {"copy_day": "2026-11-13", "status": "ok", "desired": "on"},
