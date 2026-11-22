@@ -28,6 +28,42 @@ class TimedState:
 class Coverage:
     start: datetime
     end: datetime
+    # None is an ordinary HA Recorder run; an ID scopes verified imported
+    # coverage to the source entity only.
+    entity_id: str | None = None
+
+
+def coverage_for_entity(
+    runs: Iterable[Coverage], entity_id: str
+) -> list[Coverage]:
+    """Prefer verified entity history over intersecting native-run intervals.
+
+    Native RecorderRuns remain authoritative outside entity-specific imported
+    coverage. Never borrow one light's imported coverage for another entity.
+    """
+    all_runs = list(runs)
+    imported = sorted(
+        (run for run in all_runs if run.entity_id == entity_id),
+        key=lambda run: run.start.astimezone(UTC),
+    )
+    native = [run for run in all_runs if run.entity_id is None]
+    result = list(imported)
+    for run in native:
+        pieces = [(run.start.astimezone(UTC), run.end.astimezone(UTC))]
+        for claim in imported:
+            claimed_start, claimed_end = claim.start.astimezone(UTC), claim.end.astimezone(UTC)
+            remaining = []
+            for left, right in pieces:
+                if claimed_start >= right or claimed_end <= left:
+                    remaining.append((left, right))
+                else:
+                    if left < claimed_start:
+                        remaining.append((left, claimed_start))
+                    if claimed_end < right:
+                        remaining.append((claimed_end, right))
+            pieces = remaining
+        result.extend(Coverage(left, right) for left, right in pieces if right > left)
+    return sorted(result, key=lambda run: run.start.astimezone(UTC))
 
 
 @dataclass(frozen=True)
