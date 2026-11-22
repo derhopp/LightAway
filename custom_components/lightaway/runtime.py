@@ -26,6 +26,7 @@ from .const import (
 from .model import (
     TimedState,
     candidate_days,
+    coverage_for_entity,
     desired_state,
     local_day_bounds,
     normalize_presence,
@@ -275,6 +276,9 @@ class LightAwayRuntime:
             annual_end = anniversary + timedelta(weeks=self.settings["max_weeks_away"])
             had_presence_match = False
             failed_status = None
+            # A new rebuild must verify today's Recorder content against any
+            # MoreRecords certificates anew, including after purges/repairs.
+            self.history.reset_verification_cache()
 
             if not presence_entity:
                 for light in lights:
@@ -309,7 +313,7 @@ class LightAwayRuntime:
                             day,
                             zone,
                             presence_samples,
-                            runs,
+                            coverage_for_entity(runs, presence_entity),
                             lambda value: normalize_presence(value, invert) is True,
                         )
                         # Keep bounded evidence so a rejected candidate can be
@@ -339,7 +343,7 @@ class LightAwayRuntime:
                                     day,
                                     zone,
                                     light_samples,
-                                    runs,
+                                    coverage_for_entity(runs, light),
                                     lambda value: value in ("on", "off"),
                                 )
                                 provenance = _record_provenance(day, zone, light_samples)
