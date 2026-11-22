@@ -57,7 +57,10 @@ class RecorderHistory:
             loaded = None
         valid: list[dict[str, Any]] = []
         if isinstance(loaded, dict) and loaded.get("schema") == 1:
-            for item in loaded.get("intervals", []):
+            entries = loaded.get("intervals", [])
+            if not isinstance(entries, list):
+                entries = []
+            for item in entries:
                 if not isinstance(item, dict):
                     continue
                 try:
