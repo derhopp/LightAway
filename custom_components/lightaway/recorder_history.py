@@ -53,7 +53,7 @@ class RecorderHistory:
             loaded = await Store(
                 self.hass, COVERAGE_STORE_VERSION, COVERAGE_STORE_KEY, read_only=True
             ).async_load()
-        except (OSError, ValueError, TypeError):
+        except OSError, ValueError, TypeError:
             loaded = None
         valid: list[dict[str, Any]] = []
         if isinstance(loaded, dict) and loaded.get("schema") == 1:
@@ -65,21 +65,27 @@ class RecorderHistory:
                     start = float(item["start"])
                     end = float(item["end"])
                     fingerprint = item["fingerprint"]
-                except (KeyError, ValueError, TypeError):
+                except KeyError, ValueError, TypeError:
                     continue
                 if (
                     isinstance(entity, str)
-                    and math.isfinite(start) and math.isfinite(end)
+                    and math.isfinite(start)
+                    and math.isfinite(end)
                     and end > start
                     and item.get("source") == "ccu_historian"
                     and item.get("evidence") == "confirmed_query_and_recorder_match"
-                    and isinstance(fingerprint, str) and len(fingerprint) == 64
+                    and isinstance(fingerprint, str)
+                    and len(fingerprint) == 64
                     and all(c in "0123456789abcdef" for c in fingerprint)
                 ):
-                    valid.append({
-                        "entity_id": entity, "start": start, "end": end,
-                        "fingerprint": fingerprint,
-                    })
+                    valid.append(
+                        {
+                            "entity_id": entity,
+                            "start": start,
+                            "end": end,
+                            "fingerprint": fingerprint,
+                        }
+                    )
         self._certificates = valid
         return valid
 
@@ -93,12 +99,13 @@ class RecorderHistory:
         # The recorder's executor is separate from Home Assistant's event loop.
         claims = await self._load_claims()
         instance = get_instance(self.hass)
-        return await instance.async_add_executor_job(
-            self._read_day, day, zone, entities, claims
-        )
+        return await instance.async_add_executor_job(self._read_day, day, zone, entities, claims)
 
     def _read_day(
-        self, day: date, zone, entity_ids: list[str],
+        self,
+        day: date,
+        zone,
+        entity_ids: list[str],
         claims: list[dict[str, Any]] | None = None,
     ) -> tuple[dict[str, list[TimedState]], list[Coverage]]:
         """Read recorded runs, real transitions, and corroborated initial states."""
@@ -158,11 +165,13 @@ class RecorderHistory:
                 verified = self._verified_ranges.get(cache_key)
                 if verified is None:
                     data = session.execute(
-                        select(States.last_updated_ts, States.state).where(
+                        select(States.last_updated_ts, States.state)
+                        .where(
                             States.metadata_id == meta_ids[entity],
                             States.last_updated_ts >= beginning,
                             States.last_updated_ts < ending,
-                        ).order_by(States.last_updated_ts, States.state_id)
+                        )
+                        .order_by(States.last_updated_ts, States.state_id)
                     ).all()
                     digest = hashlib.sha256()
                     for timestamp, value in data:

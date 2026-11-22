@@ -33,9 +33,7 @@ class Coverage:
     entity_id: str | None = None
 
 
-def coverage_for_entity(
-    runs: Iterable[Coverage], entity_id: str
-) -> list[Coverage]:
+def coverage_for_entity(runs: Iterable[Coverage], entity_id: str) -> list[Coverage]:
     """Prefer verified entity history over intersecting native-run intervals.
 
     Native RecorderRuns remain authoritative outside entity-specific imported
