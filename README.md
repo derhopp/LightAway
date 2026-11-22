@@ -24,6 +24,7 @@ on matching weekdays near last year, with an optional recent-weeks fallback.
 - No fixed limit on configured lights
 - Diagnostics download covering the full configured copy-day search with proven Recorder coverage
 - Recalculation after a Home Assistant time zone change
+- Optional, verified entity-scoped CCU-Historian provenance from MoreRecords
 - Stable releases v0.1.0, v0.2.0, v0.3.0 and v0.4.0; opt-in test pre-release v0.4.1b1 and v0.4.1b2 (not marked latest). Further releases require explicit authorization
 
 ## Requirements
@@ -210,6 +211,38 @@ states are **never** made valid by the replay fallback.
 
 An interrupted Recorder history may be too sparse to find an eligible day.
 Extending retention now does not recreate already purged records.
+
+## CCU-Historian verified coverage (MoreRecords)
+
+LightAway normally requires genuine Home Assistant Recorder runs. For historical
+states imported from CCU-Historian through **MoreRecords**, an entity may have
+complete original source history even though HA itself was not running then.
+An unchanged binary presence state might therefore be valid for weeks with
+zero new transitions.
+
+After an **explicit completeness confirmation** in an updated MoreRecords
+CCU-Historian import/verification workflow, MoreRecords stores a local,
+entity-scoped certificate in
+`.storage/more_records_verified_history_v1`. It covers only the interval
+from the **first real source sample** to the end of the successfully queried
+range; CSVs are never certified. The user must be able to confirm that
+CCU-Historian retained **all changes** throughout this interval.
+
+LightAway accepts this alternative continuity proof only when it can recompute
+and match the certificate's SHA-256 fingerprint against all Recorder rows in
+the certified interval. A purged, modified, missing, incomplete or otherwise
+unverified series is refused. The same certificate cannot qualify another
+entity. Outside verified historical intervals, native Recorder run boundaries
+and the established 23-hour thresholds apply. No artificial Recorder runs
+are inserted. These checks can increase the cost of the first daily rebuild
+for large imported histories.
+
+**Existing MoreRecords imports are not automatically certified.** Reopen
+MoreRecords' CCU-Historian import workflow for the same original datapoint,
+select the verified period, and confirm completeness. If nothing needs to be
+imported, the workflow can perform verification only after the source and
+Recorder entries match exactly. Keep the simulation switch disabled while
+testing; the provenance feature changes day *eligibility*, not replay safety.
 
 ## Playback and simulation
 
