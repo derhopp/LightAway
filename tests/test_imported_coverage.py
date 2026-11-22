@@ -34,7 +34,8 @@ def test_certified_history_only_belongs_to_the_selected_entity():
     start, end = local_day_bounds(DAY, ZONE)
     native = Coverage(start, start + timedelta(hours=5))
     imported = Coverage(
-        start - timedelta(days=45), end + timedelta(days=1),
+        start - timedelta(days=45),
+        end + timedelta(days=1),
         entity_id="binary_sensor.present",
     )
     one = coverage_for_entity([native, imported], "binary_sensor.present")
@@ -71,8 +72,7 @@ class Session:
         if "states.state, states.last_updated_ts" in sql:
             return SimpleNamespace(
                 first=lambda: (
-                    (self.recorded[-1][1], self.recorded[-1][0])
-                    if self.recorded else None
+                    (self.recorded[-1][1], self.recorded[-1][0]) if self.recorded else None
                 )
             )
         raise AssertionError("Unexpected SQL query")
@@ -93,7 +93,10 @@ def read_with_certificate(recorded, signed_hash):
     session = Session(recorded)
     with (
         patch("custom_components.lightaway.recorder_history.get_instance", return_value=recorder),
-        patch("custom_components.lightaway.recorder_history.session_scope", return_value=nullcontext(session)),
+        patch(
+            "custom_components.lightaway.recorder_history.session_scope",
+            return_value=nullcontext(session),
+        ),
         patch(
             "custom_components.lightaway.recorder_history.get_significant_states_with_session",
             return_value={},
@@ -109,7 +112,9 @@ def test_long_constant_on_is_qualified_only_with_verified_source():
     assert runs[0].entity_id == "binary_sensor.present"
     assert len(events["binary_sensor.present"]) == 1
     result = reconstruct(
-        DAY, ZONE, events["binary_sensor.present"],
+        DAY,
+        ZONE,
+        events["binary_sensor.present"],
         coverage_for_entity(runs, "binary_sensor.present"),
         lambda value: value == "on",
     )
@@ -134,6 +139,9 @@ def test_uncertified_silent_time_is_not_proved_by_a_different_entity():
     only_light_cert = [Coverage(start - timedelta(days=30), end, entity_id="light.a")]
     assert coverage_for_entity(only_light_cert, "binary_sensor.present") == []
     assert not reconstruct(
-        DAY, ZONE, [], coverage_for_entity(only_light_cert, "binary_sensor.present"),
+        DAY,
+        ZONE,
+        [],
+        coverage_for_entity(only_light_cert, "binary_sensor.present"),
         lambda value: value == "on",
     ).valid
