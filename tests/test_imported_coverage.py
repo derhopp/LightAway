@@ -17,7 +17,7 @@ from custom_components.lightaway.model import (
 from custom_components.lightaway.recorder_history import RecorderHistory
 
 ZONE = ZoneInfo("Europe/Berlin")
-DAY = date(2026, 11, 15)
+DAY = date(2026, 6, 15)
 
 
 def fingerprint(rows):
@@ -83,7 +83,7 @@ def read_with_certificate(recorded, signed_hash):
     recorder = MagicMock()
     recorder.recorder_runs_manager.active = False
     history = RecorderHistory(hass)
-    first, last = datetime(2026, 10, 1, tzinfo=UTC), datetime(2026, 11, 21, tzinfo=UTC)
+    first, last = datetime(2026, 5, 1, tzinfo=UTC), datetime(2026, 6, 21, tzinfo=UTC)
     claim = {
         "entity_id": "binary_sensor.present",
         "start": first.timestamp(),
@@ -106,7 +106,7 @@ def read_with_certificate(recorded, signed_hash):
 
 
 def test_long_constant_on_is_qualified_only_with_verified_source():
-    recorded = [(datetime(2026, 10, 1, tzinfo=UTC).timestamp(), "on")]
+    recorded = [(datetime(2026, 5, 1, tzinfo=UTC).timestamp(), "on")]
     events, runs = read_with_certificate(recorded, fingerprint(recorded))
     assert len(runs) == 1
     assert runs[0].entity_id == "binary_sensor.present"
@@ -123,7 +123,7 @@ def test_long_constant_on_is_qualified_only_with_verified_source():
 
 
 def test_stale_certificate_fails_closed_after_purge_or_edit():
-    recorded = [(datetime(2026, 10, 1, tzinfo=UTC).timestamp(), "on")]
+    recorded = [(datetime(2026, 5, 1, tzinfo=UTC).timestamp(), "on")]
     events, runs = read_with_certificate(recorded, fingerprint([(recorded[0][0], "off")]))
     assert not runs
     result = reconstruct(
