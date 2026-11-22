@@ -127,7 +127,9 @@ def test_stale_certificate_fails_closed_after_purge_or_edit():
     events, runs = read_with_certificate(recorded, fingerprint([(recorded[0][0], "off")]))
     assert not runs
     result = reconstruct(
-        DAY, ZONE, events["binary_sensor.present"],
+        DAY,
+        ZONE,
+        events["binary_sensor.present"],
         coverage_for_entity(runs, "binary_sensor.present"),
         lambda value: value == "on",
     )
