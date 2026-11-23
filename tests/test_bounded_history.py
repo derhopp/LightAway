@@ -189,3 +189,15 @@ def test_old_light_switches_are_replayed_on_2025_11_24(entity, changes):
     assert [item.value for item in result.transitions] == [
         "on", "on", "off", "on", "off"
     ]
+
+
+def test_incorrectly_closed_recorder_run_cannot_be_inferred_away():
+    start, end = local_day_bounds(DAY, ZONE)
+    corrupt = SimpleNamespace(
+        start=start, end=end, closed_incorrect=True
+    )
+    events, runs = read_day(
+        "binary_sensor.test_anwesenheit_2", native_runs=[corrupt]
+    )
+    assert not runs
+    assert events["binary_sensor.test_anwesenheit_2"] == []
