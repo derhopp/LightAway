@@ -216,9 +216,7 @@ class RecorderHistory:
             has_native_run_metadata = bool(db_runs)
             if not has_native_run_metadata:
                 for entity, meta_id in meta_ids.items():
-                    if entity in claimed_entities or any(
-                        run.entity_id == entity for run in runs
-                    ):
+                    if entity in claimed_entities or any(run.entity_id == entity for run in runs):
                         continue
                     before = session.execute(
                         select(States.last_updated_ts)
