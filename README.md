@@ -25,7 +25,7 @@ on matching weekdays near last year, with an optional recent-weeks fallback.
 - Diagnostics download covering the full configured copy-day search with proven Recorder coverage
 - Recalculation after a Home Assistant time zone change
 - Optional, verified entity-scoped CCU-Historian provenance from MoreRecords
-- Stable releases v0.1.0, v0.2.0, v0.3.0 and v0.4.0; opt-in test pre-release v0.4.1b1, v0.4.1b2 and v0.4.1b3 (not marked latest). Further releases require explicit authorization
+- Stable releases v0.1.0, v0.2.0, v0.3.0 and v0.4.0; opt-in test pre-release v0.4.1b1, v0.4.1b2, v0.4.1b3 and v0.4.1b4 (not marked latest). Further releases require explicit authorization
 
 ## Requirements
 
@@ -43,7 +43,7 @@ Recorder API and SQLAlchemy abstractions, not direct SQLite connections.
 
 1. In HACS, open the integration repositories list and add
    `https://github.com/derhopp/LightAway` as a **custom integration repository**.
-2. Install the latest **stable** LightAway release (`v0.4.0`). The `main` branch is for development. For opt-in testing only, enable the repository's **Pre-release** switch in HACS / Marketplace and choose the pre-release `v0.4.1b3`.
+2. Install the latest **stable** LightAway release (`v0.4.0`). The `main` branch is for development. For opt-in testing only, enable the repository's **Pre-release** switch in HACS / Marketplace and choose the pre-release `v0.4.1b4`.
 3. Restart Home Assistant.
 4. Open **Settings → Devices & services → Add integration → LightAway**.
 5. In your dashboard, add a **Manual** card:
@@ -188,21 +188,23 @@ Tuesday 17 November checks Tuesday **10 November 2026** before Tuesday
 history qualifies. Day boundaries and local weekdays are always calculated in
 the configured Home Assistant time zone.
 
-A Recorder state last changed on 2 or 3 November can still be the proven
-**starting state** of 9 or 10 November if the same Recorder run confirms
-continuity. This is not a replay of the earlier date: only transitions during
-the actual selected copy day are replayed. The diagnostic download now includes
-`in_day_records` and `carried_state_recorded_at` for both presence and each
-candidate light, so you can distinguish real events on the selected day from
-carried-forward states. A Recorder gap is never bridged merely by an older
-state; gaps must be evaluated on the selected day itself.
+A Recorder state last changed weeks or months before a candidate day
+can still establish the **last known starting state**, for both presence
+and each light, even across multiple Home Assistant Recorder restarts.
+Only changes within the selected copy day are replayed; old events are
+never replayed at their original dates. Diagnostics include
+`in_day_records` and `carried_state_recorded_at` for both presence and
+lights. A Recorder outage is not counted as observed time; a candidate day
+still requires at least 23 eligible recorded hours.
 
 Recorder stores state changes, not periodic samples. An entire day can be
-valid without any changes **when recording coverage and a preceding real
-state within the same Recorder run establish continuity**. The algorithm
-loads real Recorder states and the boundaries of completed Recorder runs,
-uses a genuine pre-day sample only if it is within that same run, and
-counts only the time where both a state and recording continuity are proven.
+valid without any changes when sufficient actual Recorder-run coverage
+(or separately verified CCU-Historian coverage for that entity) exists
+and there is a preceding genuine state sample. The last-known value is
+carried into subsequent recorded intervals. An unrecorded state change
+during an outage cannot be recovered or proven; for exact historical
+continuity across downtime, certify a complete original CCU-Historian
+source via MoreRecords.
 
 Missing runs, uncovered periods, invalid state intervals and unverified
 continuity count as zero. Neither an empty list of state changes nor a

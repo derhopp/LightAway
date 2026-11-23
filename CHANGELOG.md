@@ -1,3 +1,27 @@
+# LightAway 0.4.1 Beta 4
+
+**Opt-in pre-release.** Last known real Recorder states now carry across
+Home Assistant restarts for both presence signals and lights, even if the
+last change occurred months earlier. Recorder-offline intervals still
+count as zero coverage, and the existing 23-hour qualifying threshold
+remains unchanged. Historical transitions are replayed only on the
+selected copy day.
+
+- Fetch the last actual state before each run rather than limiting
+  the query to the current Recorder run.
+- Keep `unknown` and `unavailable` invalid and reject excessive
+  within-day Recorder gaps.
+- Regression tests cover 100+ day state intervals, multiple restarts,
+  recorded light transitions and missing source states.
+- MoreRecords 0.1.0b3 can certify complete CCU-Historian history even when
+  Recorder contains additional identical samples; source changes and
+  contradictions are still rejected.
+
+No unrecorded changes can be inferred from an outage. Keep simulation
+disabled for first-run verification.
+
+---
+
 # LightAway 0.4.1 Beta 3
 
 **Pre-release / opt-in testing only.** This release is explicitly marked as a GitHub pre-release and is not Latest. Users who have excluded pre-releases in HACS / Home Assistant Marketplace continue to receive stable **v0.4.0**.

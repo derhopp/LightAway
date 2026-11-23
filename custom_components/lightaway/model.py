@@ -1,8 +1,8 @@
 """Pure, time-zone-aware state reconstruction and day selection.
 
 All intervals are half open and all measured durations use UTC elapsed seconds.
-Recorder run boundaries are authoritative: no event propagates across a run
-unless a new event in that run establishes continuity.
+Recorder runs prove recorded time, not state transitions. A last known real
+entity value may carry across restarts, but offline gaps are never counted.
 """
 
 from __future__ import annotations
@@ -157,10 +157,10 @@ def reconstruct(
 ) -> Timeline:
     """Sum only corroborated intervals during recorded runs.
 
-    The event list must contain genuine timestamped recorder samples, including
-    the latest sample before midnight *from within the same recorder run*.
-    A silent day counts if this evidence and run coverage exist. Unobserved
-    intervals, invalid states and all intervals outside runs count as zero.
+    The event list contains genuine timestamped Recorder samples and the last
+    available sample before each run slice. Stable states can carry forward
+    across restarts, but time without Recorder coverage remains unqualified.
+    Unknown/unavailable states never qualify.
     """
     start, end = local_day_bounds(day, zone)
     ordered = sorted(events, key=lambda row: row.at.astimezone(UTC))
@@ -178,19 +178,25 @@ def reconstruct(
         finish = min(end, run.end.astimezone(UTC))
         if begin >= finish:
             continue
-        # Only events *within this run* establish a trustworthy initial state.
-        applicable = [
-            event
-            for event in ordered
-            if run.start.astimezone(UTC) <= event.at.astimezone(UTC) < finish
-        ]
-        state: str | None = None
-        cursor = begin
-        for event in applicable:
+        # The latest genuine sample is the last known value in each later
+        # run, even if it is months old. Carry its state, not the missing
+        # Recorder coverage, across restart gaps.
+        seed: TimedState | None = None
+        within: list[TimedState] = []
+        for event in ordered:
             at = event.at.astimezone(UTC)
             if at <= begin:
-                state = event.value
-                continue
+                seed = event
+            elif at < finish:
+                within.append(event)
+            else:
+                break
+
+        state = seed.value if seed is not None else None
+        initial_state = state
+        cursor = begin
+        for event in within:
+            at = event.at.astimezone(UTC)
             if state is not None:
                 observed_seconds += seconds_between(cursor, at)
                 if acceptable(state):
@@ -202,14 +208,11 @@ def reconstruct(
             if acceptable(state):
                 valid_seconds += seconds_between(cursor, finish)
 
-        # Playback includes the last proven sample before the day's start.
-        if begin == start:
-            prior = [sample for sample in applicable if sample.at.astimezone(UTC) <= start]
-            if prior:
-                replay.append(TimedState(start, prior[-1].value))
-        for sample in applicable:
-            if begin < sample.at.astimezone(UTC) < finish:
-                replay.append(sample)
+        # Playback uses the selected day's slice, not old event times. A
+        # later Recorder run must re-establish its carried initial state.
+        if initial_state is not None:
+            replay.append(TimedState(begin, initial_state))
+        replay.extend(within)
 
     # A physical instant can occur in multiple runs with malformed metadata.
     # Bound counted durations by rejecting overlaps before this function.
