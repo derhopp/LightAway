@@ -37,9 +37,7 @@ def test_months_old_state_qualifies_day_across_restart(entity):
         [TimedState(old, "on")],
         runs,
         lambda value: (
-            value == "on"
-            if entity.startswith("binary_sensor")
-            else value in ("on", "off")
+            value == "on" if entity.startswith("binary_sensor") else value in ("on", "off")
         ),
     )
     assert timeline.valid
@@ -50,10 +48,7 @@ def test_months_old_state_qualifies_day_across_restart(entity):
         start + timedelta(hours=8, minutes=5),
         start + timedelta(hours=16, minutes=5),
     ]
-    assert (
-        desired_state(timeline, datetime(2026, 11, 23, 18, tzinfo=ZONE), ZONE)
-        == "on"
-    )
+    assert desired_state(timeline, datetime(2026, 11, 23, 18, tzinfo=ZONE), ZONE) == "on"
 
 
 def test_old_off_light_state_and_midday_switch_are_replayed():
@@ -72,10 +67,7 @@ def test_old_off_light_state_and_midday_switch_are_replayed():
     )
     assert timeline.valid
     assert [row.value for row in timeline.transitions] == ["off", "off", "on"]
-    assert (
-        desired_state(timeline, datetime(2026, 11, 23, 8, tzinfo=ZONE), ZONE)
-        == "off"
-    )
+    assert desired_state(timeline, datetime(2026, 11, 23, 8, tzinfo=ZONE), ZONE) == "off"
     assert (
         desired_state(timeline, datetime(2026, 11, 23, 18, tzinfo=ZONE), ZONE)
         == "on"
@@ -177,6 +169,4 @@ def test_recorder_reader_fetches_pre_restart_anchor_for_both_types(entity):
         events, runs = reader._read_day(DAY, ZONE, [entity])
     assert events[entity] == [TimedState(old, "on")]
     assert len(runs) == 1
-    assert reconstruct(
-        DAY, ZONE, events[entity], runs, lambda value: value == "on"
-    ).valid
+    assert reconstruct(DAY, ZONE, events[entity], runs, lambda value: value == "on").valid
