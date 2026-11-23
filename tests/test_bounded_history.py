@@ -42,16 +42,12 @@ class FakeSession:
             return SimpleNamespace(all=lambda: [(self.entity, 1)])
         if "states.state, states.last_updated_ts" in sql:
             return SimpleNamespace(
-                first=lambda: ("on", self.before.timestamp())
-                if self.before is not None
-                else None
+                first=lambda: ("on", self.before.timestamp()) if self.before is not None else None
             )
         if "SELECT states.last_updated_ts" in sql:
             timestamp = self.before if " DESC" in sql else self.after
             return SimpleNamespace(
-                scalar_one_or_none=lambda: timestamp.timestamp()
-                if timestamp is not None
-                else None
+                scalar_one_or_none=lambda: timestamp.timestamp() if timestamp is not None else None
             )
         raise AssertionError(f"Unexpected SQL statement: {sql}")
 
@@ -73,10 +69,7 @@ def read_day(entity, before=ON_ANCHOR, after=OFF_ANCHOR, native_runs=(), in_day=
         patch(
             "custom_components.lightaway.recorder_history.get_significant_states_with_session",
             return_value={
-                entity: [
-                    SimpleNamespace(last_updated=when, state=value)
-                    for when, value in in_day
-                ]
+                entity: [SimpleNamespace(last_updated=when, state=value) for when, value in in_day]
             },
         ),
     ):
@@ -112,25 +105,22 @@ def test_year_old_state_history_qualifies_same_weekday(entity):
     ],
 )
 def test_missing_first_or_later_boundary_is_not_inferred(before, after):
-    events, runs = read_day(
-        "binary_sensor.test_anwesenheit_2", before=before, after=after
-    )
+    events, runs = read_day("binary_sensor.test_anwesenheit_2", before=before, after=after)
     assert not runs
     assert not events["binary_sensor.test_anwesenheit_2"]
 
 
 def test_existing_recorder_gap_is_not_replaced_with_inferred_whole_day():
     start, end = local_day_bounds(DAY, ZONE)
-    native = SimpleNamespace(
-        start=start, end=start + timedelta(hours=12), closed_incorrect=False
-    )
-    events, runs = read_day(
-        "binary_sensor.test_anwesenheit_2", native_runs=[native]
-    )
+    native = SimpleNamespace(start=start, end=start + timedelta(hours=12), closed_incorrect=False)
+    events, runs = read_day("binary_sensor.test_anwesenheit_2", native_runs=[native])
     assert len(runs) == 1
     assert runs[0] == Coverage(start, start + timedelta(hours=12))
     result = reconstruct(
-        DAY, ZONE, events["binary_sensor.test_anwesenheit_2"], runs,
+        DAY,
+        ZONE,
+        events["binary_sensor.test_anwesenheit_2"],
+        runs,
         lambda value: value == "on",
     )
     assert not result.valid
@@ -145,10 +135,15 @@ def test_no_borrowed_coverage_across_entities():
 
 def test_invalid_inferred_state_does_not_qualify():
     start, end = local_day_bounds(DAY, ZONE)
-    runs = [Coverage(start, end, entity_id="binary_sensor.test_anwesenheit_2",
-                     source="bounded_state_history")]
+    runs = [
+        Coverage(
+            start, end, entity_id="binary_sensor.test_anwesenheit_2", source="bounded_state_history"
+        )
+    ]
     result = reconstruct(
-        DAY, ZONE, [],
+        DAY,
+        ZONE,
+        [],
         coverage_for_entity(runs, "binary_sensor.test_anwesenheit_2"),
         lambda value: value == "on",
     )
@@ -182,22 +177,19 @@ def test_old_light_switches_are_replayed_on_2025_11_24(entity, changes):
         in_day=source_events,
     )
     result = reconstruct(
-        DAY, ZONE, events[entity], coverage_for_entity(runs, entity),
+        DAY,
+        ZONE,
+        events[entity],
+        coverage_for_entity(runs, entity),
         lambda value: value in ("on", "off"),
     )
     assert result.valid
-    assert [item.value for item in result.transitions] == [
-        "on", "on", "off", "on", "off"
-    ]
+    assert [item.value for item in result.transitions] == ["on", "on", "off", "on", "off"]
 
 
 def test_incorrectly_closed_recorder_run_cannot_be_inferred_away():
     start, end = local_day_bounds(DAY, ZONE)
-    corrupt = SimpleNamespace(
-        start=start, end=end, closed_incorrect=True
-    )
-    events, runs = read_day(
-        "binary_sensor.test_anwesenheit_2", native_runs=[corrupt]
-    )
+    corrupt = SimpleNamespace(start=start, end=end, closed_incorrect=True)
+    events, runs = read_day("binary_sensor.test_anwesenheit_2", native_runs=[corrupt])
     assert not runs
     assert events["binary_sensor.test_anwesenheit_2"] == []
