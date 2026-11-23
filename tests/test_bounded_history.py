@@ -46,7 +46,7 @@ class FakeSession:
                 if self.before is not None
                 else None
             )
-        if "states.last_updated_ts" in sql and "states.state" not in sql:
+        if "SELECT states.last_updated_ts" in sql:
             timestamp = self.before if " DESC" in sql else self.after
             return SimpleNamespace(
                 scalar_one_or_none=lambda: timestamp.timestamp()
