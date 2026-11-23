@@ -43,7 +43,7 @@ Recorder API and SQLAlchemy abstractions, not direct SQLite connections.
 
 1. In HACS, open the integration repositories list and add
    `https://github.com/derhopp/LightAway` as a **custom integration repository**.
-2. Install the latest **stable** LightAway release (`v0.4.0`). The `main` branch is for development. For opt-in testing only, enable the repository's **Pre-release** switch in HACS / Marketplace and choose the pre-release `v0.4.1b4`.
+2. Install the latest **stable** LightAway release (`v0.4.0`). The `main` branch is for development. For opt-in testing only, enable the repository's **Pre-release** switch in HACS / Marketplace and choose the pre-release `v0.4.1b5`.
 3. Restart Home Assistant.
 4. Open **Settings → Devices & services → Add integration → LightAway**.
 5. In your dashboard, add a **Manual** card:
