@@ -1,0 +1,51 @@
+name: Publish 0.4.1b5 prerelease after green CI
+
+on:
+  workflow_run:
+    workflows: ["LightAway CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - name: Publish only the reviewed beta preparation commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [[ "$(git log -1 --pretty=%s)" != "chore: prepare prerelease 0.4.1b5" ]]; then
+            echo "Not the beta preparation commit; skipping."
+            exit 0
+          fi
+          version="$(python -c 'import json; print(json.load(open("custom_components/lightaway/manifest.json"))["version"])')"
+          if [[ "$version" != "0.4.1b5" ]]; then
+            echo "Manifest version is $version, expected 0.4.1b5"
+            exit 1
+          fi
+          if gh release view "v0.4.1b5" --repo "$REPO" >/dev/null 2>&1; then
+            echo "Release already exists; not changing it."
+            exit 0
+          fi
+          gh release create "v0.4.1b5" \
+            --repo "$REPO" \
+            --target "$TARGET_SHA" \
+            --title "LightAway 0.4.1 Beta 5" \
+            --notes-file ".github/RELEASE_NOTES_0.4.1b5.md" \
+            --prerelease \
+            --latest=false
+          echo "Published v0.4.1b5 for $TARGET_SHA"
