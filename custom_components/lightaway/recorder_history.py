@@ -32,7 +32,7 @@ def _as_utc(value: datetime) -> datetime:
 
 
 class RecorderHistory:
-    """Load one historical day, including verified pre-midnight seed states."""
+    """Load a day and genuine entity state anchors across Recorder runs."""
 
     def __init__(self, hass: HomeAssistant) -> None:
         self.hass = hass
@@ -111,7 +111,7 @@ class RecorderHistory:
         entity_ids: list[str],
         claims: list[dict[str, Any]] | None = None,
     ) -> tuple[dict[str, list[TimedState]], list[Coverage]]:
-        """Read recorded runs, real transitions, and corroborated initial states."""
+        """Read real transitions, recorded-run coverage and last known states."""
         start, end = local_day_bounds(day, zone)
         events: dict[str, list[TimedState]] = {entity: [] for entity in entity_ids}
         manager = get_instance(self.hass).recorder_runs_manager
@@ -218,9 +218,10 @@ class RecorderHistory:
                         if start <= timestamp < end:
                             events[entity].append(TimedState(timestamp, state.state))
 
-            # For a state carried into the day (or across a later recorder
-            # restart), demand a REAL recorded sample from *the same run*.
-            # This also permits completely silent days when evidenced.
+            # Find the last REAL Recorder state even if it precedes a restart
+            # by months. A state remains the last known value until superseded.
+            # The preceding recording gaps are not credited as coverage:
+            # reconstruct() counts only actual runs or verified imports.
             for run in runs:
                 begin = max(start, run.start)
                 if begin >= end:
@@ -235,7 +236,6 @@ class RecorderHistory:
                         select(States.state, States.last_updated_ts)
                         .where(
                             States.metadata_id == meta_id,
-                            States.last_updated_ts >= run.start.timestamp(),
                             States.last_updated_ts <= begin.timestamp(),
                         )
                         .order_by(States.last_updated_ts.desc())
