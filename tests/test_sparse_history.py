@@ -35,7 +35,11 @@ def test_months_old_state_qualifies_day_across_restart(entity):
         ZONE,
         [TimedState(old, "on")],
         runs,
-        lambda value: value == "on" if entity.startswith("binary_sensor") else value in ("on", "off"),
+        lambda value: (
+            value == "on"
+            if entity.startswith("binary_sensor")
+            else value in ("on", "off")
+        ),
     )
     assert timeline.valid
     assert timeline.seconds == 24 * 3600 - 10 * 60
@@ -44,9 +48,10 @@ def test_months_old_state_qualifies_day_across_restart(entity):
         start,
         start + timedelta(hours=12, minutes=10),
     ]
-    assert desired_state(
-        timeline, datetime(2026, 11, 23, 18, tzinfo=ZONE), ZONE
-    ) == "on"
+    assert (
+        desired_state(timeline, datetime(2026, 11, 23, 18, tzinfo=ZONE), ZONE)
+        == "on"
+    )
 
 
 def test_old_off_light_state_and_midday_switch_are_replayed():
@@ -57,20 +62,30 @@ def test_old_off_light_state_and_midday_switch_are_replayed():
         Coverage(start + timedelta(hours=4, minutes=5), end),
     ]
     timeline = reconstruct(
-        DAY, ZONE,
+        DAY,
+        ZONE,
         [TimedState(start - timedelta(days=150), "off"), TimedState(morning, "on")],
-        runs, lambda value: value in ("on", "off"),
+        runs,
+        lambda value: value in ("on", "off"),
     )
     assert timeline.valid
     assert [row.value for row in timeline.transitions] == ["off", "off", "on"]
-    assert desired_state(timeline, datetime(2026, 11, 23, 8, tzinfo=ZONE), ZONE) == "off"
-    assert desired_state(timeline, datetime(2026, 11, 23, 18, tzinfo=ZONE), ZONE) == "on"
+    assert (
+        desired_state(timeline, datetime(2026, 11, 23, 8, tzinfo=ZONE), ZONE)
+        == "off"
+    )
+    assert (
+        desired_state(timeline, datetime(2026, 11, 23, 18, tzinfo=ZONE), ZONE)
+        == "on"
+    )
 
 
 def test_long_recording_outage_does_not_qualify_a_day():
     start, end = local_day_bounds(DAY, ZONE)
     timeline = reconstruct(
-        DAY, ZONE, [TimedState(start - timedelta(days=150), "on")],
+        DAY,
+        ZONE,
+        [TimedState(start - timedelta(days=150), "on")],
         [
             Coverage(start, start + timedelta(hours=11)),
             Coverage(start + timedelta(hours=14), end),
@@ -84,8 +99,13 @@ def test_long_recording_outage_does_not_qualify_a_day():
 def test_unavailable_is_not_promoted_to_valid_by_restart():
     start, end = local_day_bounds(DAY, ZONE)
     timeline = reconstruct(
-        DAY, ZONE, [TimedState(start - timedelta(days=90), "unavailable")],
-        [Coverage(start, start + timedelta(hours=8)), Coverage(start + timedelta(hours=8), end)],
+        DAY,
+        ZONE,
+        [TimedState(start - timedelta(days=90), "unavailable")],
+        [
+            Coverage(start, start + timedelta(hours=8)),
+            Coverage(start + timedelta(hours=8), end),
+        ],
         lambda value: value in ("on", "off"),
     )
     assert timeline.seconds == 0
@@ -95,7 +115,10 @@ def test_unavailable_is_not_promoted_to_valid_by_restart():
 def test_absent_state_anchor_does_not_invent_entity_history():
     start, end = local_day_bounds(DAY, ZONE)
     timeline = reconstruct(
-        DAY, ZONE, [], [Coverage(start, end)],
+        DAY,
+        ZONE,
+        [],
+        [Coverage(start, end)],
         lambda value: value in ("on", "off"),
     )
     assert timeline.seconds == 0
@@ -110,12 +133,15 @@ def test_recorder_reader_fetches_pre_restart_anchor_for_both_types(entity):
 
     class FakeSession:
         def scalars(self, statement):
-            return SimpleNamespace(all=lambda: [
-                SimpleNamespace(
-                    start=start - timedelta(minutes=1), end=end,
-                    closed_incorrect=False,
-                )
-            ])
+            return SimpleNamespace(
+                all=lambda: [
+                    SimpleNamespace(
+                        start=start - timedelta(minutes=1),
+                        end=end,
+                        closed_incorrect=False,
+                    )
+                ]
+            )
 
         def execute(self, statement):
             sql = str(statement)
@@ -133,7 +159,10 @@ def test_recorder_reader_fetches_pre_restart_anchor_for_both_types(entity):
     recorder.recorder_runs_manager.active = False
     reader = RecorderHistory(hass)
     with (
-        patch("custom_components.lightaway.recorder_history.get_instance", return_value=recorder),
+        patch(
+            "custom_components.lightaway.recorder_history.get_instance",
+            return_value=recorder,
+        ),
         patch(
             "custom_components.lightaway.recorder_history.session_scope",
             return_value=nullcontext(FakeSession()),
