@@ -211,8 +211,10 @@ class RecorderHistory:
             # This is state-history inference, NOT proof of uninterrupted
             # Recorder operation or CCU-Historian source completeness. Never
             # override a known native Recorder run/gap or a failed certificate.
-            has_native_runs = any(run.entity_id is None for run in runs)
-            if not has_native_runs:
+            # Even invalid/incorrectly closed RecorderRuns are evidence of
+            # a known recording interruption; never upgrade those days.
+            has_native_run_metadata = bool(db_runs)
+            if not has_native_run_metadata:
                 for entity, meta_id in meta_ids.items():
                     if entity in claimed_entities or any(
                         run.entity_id == entity for run in runs
