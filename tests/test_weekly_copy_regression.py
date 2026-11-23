@@ -197,5 +197,7 @@ def test_a_gap_on_target_day_is_not_rescued_by_last_week_seed():
         ],
         lambda state: state == "on",
     )
-    assert result.seconds == 10 * 3600
+    # The old real state persists across the restart, but the two-hour
+    # Recorder outage is still excluded. Only 22 hours qualify.
+    assert result.seconds == 22 * 3600
     assert not result.valid
