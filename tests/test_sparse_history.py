@@ -1,7 +1,7 @@
 """Sparse presence and light Recorder histories survive multiple restarts."""
 
 from contextlib import nullcontext
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from zoneinfo import ZoneInfo
