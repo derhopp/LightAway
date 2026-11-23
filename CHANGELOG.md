@@ -1,3 +1,13 @@
+# LightAway 0.4.1 Beta 5
+
+When historical entity states exist before the HA Recorder service was
+present, reconstruct bounded same-entity state-change histories for presence
+and lights, provided an earlier and later genuine state observation exist.
+Never override known native Recorder gaps. Diagnostics identify the
+inferred source as `bounded_state_history`; it is not verified completeness.
+
+---
+
 # LightAway 0.4.1 Beta 4
 
 **Opt-in pre-release.** Last known real Recorder states now carry across
