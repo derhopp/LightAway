@@ -56,7 +56,7 @@ class FakeSession:
         raise AssertionError(f"Unexpected SQL statement: {sql}")
 
 
-def read_day(entity, before=ON_ANCHOR, after=OFF_ANCHOR, native_runs=()):
+def read_day(entity, before=ON_ANCHOR, after=OFF_ANCHOR, native_runs=(), in_day=()):
     session = FakeSession(entity, before, after, native_runs)
     recorder = MagicMock()
     recorder.recorder_runs_manager.active = False
@@ -72,7 +72,12 @@ def read_day(entity, before=ON_ANCHOR, after=OFF_ANCHOR, native_runs=()):
         ),
         patch(
             "custom_components.lightaway.recorder_history.get_significant_states_with_session",
-            return_value={},
+            return_value={
+                entity: [
+                    SimpleNamespace(last_updated=when, state=value)
+                    for when, value in in_day
+                ]
+            },
         ),
     ):
         return reader._read_day(DAY, ZONE, [entity])
@@ -149,3 +154,38 @@ def test_invalid_inferred_state_does_not_qualify():
     )
     assert not result.valid
     assert result.seconds == 0
+
+
+@pytest.mark.parametrize(
+    "entity,changes",
+    [
+        (
+            "light.testlicht_gaste_wc_spots",
+            [(7, 56, "on"), (7, 59, "off"), (17, 7, "on"), (17, 12, "off")],
+        ),
+        (
+            "light.testlicht_bad_spots",
+            [(6, 45, "on"), (7, 16, "off"), (8, 50, "on"), (8, 54, "off")],
+        ),
+    ],
+)
+def test_old_light_switches_are_replayed_on_2025_11_24(entity, changes):
+    """Actual in-day transitions are retained, not merely constant states."""
+    source_events = [
+        (datetime(2025, 11, 24, hour, minute, tzinfo=ZONE), value)
+        for hour, minute, value in changes
+    ]
+    events, runs = read_day(
+        entity,
+        before=datetime(2025, 11, 8, 6, tzinfo=ZONE),
+        after=datetime(2025, 12, 1, 6, tzinfo=ZONE),
+        in_day=source_events,
+    )
+    result = reconstruct(
+        DAY, ZONE, events[entity], coverage_for_entity(runs, entity),
+        lambda value: value in ("on", "off"),
+    )
+    assert result.valid
+    assert [item.value for item in result.transitions] == [
+        "on", "on", "off", "on", "off"
+    ]
