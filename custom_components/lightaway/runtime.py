@@ -309,11 +309,12 @@ class LightAwayRuntime:
                             failed_status = "recorder_unavailable"
                             break
                         presence_samples = events.get(presence_entity, ())
+                        presence_coverage = coverage_for_entity(runs, presence_entity)
                         presence = reconstruct(
                             day,
                             zone,
                             presence_samples,
-                            coverage_for_entity(runs, presence_entity),
+                            presence_coverage,
                             lambda value: normalize_presence(value, invert) is True,
                         )
                         # Keep bounded evidence so a rejected candidate can be
@@ -327,6 +328,9 @@ class LightAwayRuntime:
                             "presence_seconds": round(presence.seconds),
                             "presence_observed_seconds": round(presence.observed_seconds),
                             "presence_valid": presence.valid,
+                            "presence_coverage_sources": sorted(
+                                {run.source for run in presence_coverage}
+                            ),
                             "presence_recording": _record_provenance(day, zone, presence_samples),
                             "lights": {},
                         }
@@ -339,17 +343,21 @@ class LightAwayRuntime:
                         for light in pending:
                             try:
                                 light_samples = events.get(light, ())
+                                light_coverage = coverage_for_entity(runs, light)
                                 timeline = reconstruct(
                                     day,
                                     zone,
                                     light_samples,
-                                    coverage_for_entity(runs, light),
+                                    light_coverage,
                                     lambda value: value in ("on", "off"),
                                 )
                                 provenance = _record_provenance(day, zone, light_samples)
                                 candidate["lights"][light] = {
                                     "seconds": round(timeline.seconds),
                                     "valid": timeline.valid,
+                                    "coverage_sources": sorted(
+                                        {run.source for run in light_coverage}
+                                    ),
                                     **provenance,
                                 }
                                 if timeline.valid:
@@ -358,6 +366,9 @@ class LightAwayRuntime:
                                         "timeline": timeline,
                                         "desired": None,
                                         "status": "ok",
+                                        "coverage_sources": sorted(
+                                            {run.source for run in light_coverage}
+                                        ),
                                         **provenance,
                                     }
                             except Exception:
@@ -513,6 +524,7 @@ class LightAwayRuntime:
                     "transitions": len(timeline.transitions) if timeline else 0,
                     "qualified_seconds": round(timeline.seconds) if timeline else None,
                     "observed_seconds": round(timeline.observed_seconds) if timeline else None,
+                    "coverage_sources": result.get("coverage_sources", []),
                     "in_day_records": result.get("in_day_records"),
                     "carried_state_recorded_at": result.get("carried_state_recorded_at"),
                 }
