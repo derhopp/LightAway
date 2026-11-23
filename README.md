@@ -43,7 +43,7 @@ Recorder API and SQLAlchemy abstractions, not direct SQLite connections.
 
 1. In HACS, open the integration repositories list and add
    `https://github.com/derhopp/LightAway` as a **custom integration repository**.
-2. Install the latest **stable** LightAway release (`v0.4.0`). The `main` branch is for development. For opt-in testing only, enable the repository's **Pre-release** switch in HACS / Marketplace and choose the pre-release `v0.4.1b4`.
+2. Install the latest **stable** LightAway release (`v0.4.0`). The `main` branch is for development. For opt-in testing only, enable the repository's **Pre-release** switch in HACS / Marketplace and choose the pre-release `v0.4.1b5`.
 3. Restart Home Assistant.
 4. Open **Settings → Devices & services → Add integration → LightAway**.
 5. In your dashboard, add a **Manual** card:
@@ -323,3 +323,26 @@ validation. No workflow publishes releases or Git tags.
 - No user-triggered arbitrary reference date overrides in version 0.1.
 - Automatic Lovelace resource registration is available only in storage mode.
 - Daily historical scans can take time with many lights and a year of history.
+
+## Historical state-change histories predating Home Assistant Recorder
+
+LightAway can use old state-change records already stored in Home Assistant
+Recorder even if there were no actual Home Assistant `RecorderRuns` on that
+historical date. When a real, entity-specific observation at or before the
+candidate day's start and another observation **after** the candidate day's
+end bound that date, LightAway can reconstruct the intervening states from
+the stored changes. This applies independently to the presence sensor and
+every chosen light.
+
+This **bounded_state_history** mode is an *inference from last-known
+states*, not evidence that the original CCU-Historian or Home Assistant
+Recorder continuously captured all changes. Unknown intermediate changes
+cannot be detected. It does **not** override known native Recorder gaps or
+failed overlapping MoreRecords completeness certificates. Verifiably
+complete CCU-Historian intervals still require explicit certification.
+
+In downloaded diagnostics, `presence_coverage_sources` and per-light
+`coverage_sources` distinguish `bounded_state_history` from `recorder`
+and `ccu_historian_verified`. Review the results with simulation off before
+allowing LightAway to operate lights.
+
