@@ -27,8 +27,9 @@ def test_months_old_state_qualifies_day_across_restart(entity):
     start, end = local_day_bounds(DAY, ZONE)
     old = start - timedelta(days=103)
     runs = [
-        Coverage(start - timedelta(minutes=1), start + timedelta(hours=12)),
-        Coverage(start + timedelta(hours=12, minutes=10), end),
+        Coverage(start - timedelta(minutes=1), start + timedelta(hours=8)),
+        Coverage(start + timedelta(hours=8, minutes=5), start + timedelta(hours=16)),
+        Coverage(start + timedelta(hours=16, minutes=5), end),
     ]
     timeline = reconstruct(
         DAY,
@@ -46,7 +47,8 @@ def test_months_old_state_qualifies_day_across_restart(entity):
     assert timeline.observed_seconds == timeline.seconds
     assert [event.at for event in timeline.transitions] == [
         start,
-        start + timedelta(hours=12, minutes=10),
+        start + timedelta(hours=8, minutes=5),
+        start + timedelta(hours=16, minutes=5),
     ]
     assert (
         desired_state(timeline, datetime(2026, 11, 23, 18, tzinfo=ZONE), ZONE)
