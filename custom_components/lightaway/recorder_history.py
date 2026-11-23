@@ -156,6 +156,7 @@ class RecorderHistory:
                     )
                 ).all()
             )
+            claimed_entities: set[str] = set()
             for claim in claims or []:
                 entity = claim["entity_id"]
                 if entity not in events or entity not in meta_ids:
@@ -164,6 +165,9 @@ class RecorderHistory:
                 ending = claim["end"]
                 if beginning >= end.timestamp() or ending <= start.timestamp():
                     continue
+                # A stale or conflicting certificate must fail closed rather
+                # than silently falling back to a weaker evidence source.
+                claimed_entities.add(entity)
                 cache_key = (meta_ids[entity], beginning, ending, claim["fingerprint"])
                 verified = self._verified_ranges.get(cache_key)
                 if verified is None:
@@ -193,8 +197,56 @@ class RecorderHistory:
                             datetime.fromtimestamp(beginning, UTC),
                             datetime.fromtimestamp(ending, UTC),
                             entity_id=entity,
+                            source="ccu_historian_verified",
                         )
                     )
+
+            # Histories imported into Recorder before Home Assistant was
+            # running have real state-change rows but no historical
+            # RecorderRuns. For those older days, a genuine state at/before
+            # midnight AND a subsequent observation after the day bracket
+            # a bounded state-change series. Reconstruct its in-day events
+            # exactly as for native Recorder data, never inventing samples.
+            #
+            # This is state-history inference, NOT proof of uninterrupted
+            # Recorder operation or CCU-Historian source completeness. Never
+            # override a known native Recorder run/gap or a failed certificate.
+            has_native_runs = any(run.entity_id is None for run in runs)
+            if not has_native_runs:
+                for entity, meta_id in meta_ids.items():
+                    if entity in claimed_entities or any(
+                        run.entity_id == entity for run in runs
+                    ):
+                        continue
+                    before = session.execute(
+                        select(States.last_updated_ts)
+                        .where(
+                            States.metadata_id == meta_id,
+                            States.last_updated_ts <= start.timestamp(),
+                        )
+                        .order_by(States.last_updated_ts.desc(), States.state_id.desc())
+                        .limit(1)
+                    ).scalar_one_or_none()
+                    if before is None:
+                        continue
+                    after = session.execute(
+                        select(States.last_updated_ts)
+                        .where(
+                            States.metadata_id == meta_id,
+                            States.last_updated_ts >= end.timestamp(),
+                        )
+                        .order_by(States.last_updated_ts.asc(), States.state_id.asc())
+                        .limit(1)
+                    ).scalar_one_or_none()
+                    if after is not None:
+                        runs.append(
+                            Coverage(
+                                start,
+                                end,
+                                entity_id=entity,
+                                source="bounded_state_history",
+                            )
+                        )
             if not runs:
                 return events, []
 
