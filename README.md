@@ -25,7 +25,7 @@ on matching weekdays near last year, with an optional recent-weeks fallback.
 - Diagnostics download covering the full configured copy-day search with proven Recorder coverage
 - Recalculation after a Home Assistant time zone change
 - Optional, verified entity-scoped CCU-Historian provenance from MoreRecords
-- Stable releases v0.1.0, v0.2.0, v0.3.0 and v0.4.0; opt-in test pre-release v0.4.1b1, v0.4.1b2 and v0.4.1b3 (not marked latest). Further releases require explicit authorization
+- Stable releases v0.1.0, v0.2.0, v0.3.0 and v0.4.0; opt-in test pre-release v0.4.1b1, v0.4.1b2, v0.4.1b3 and v0.4.1b4 (not marked latest). Further releases require explicit authorization
 
 ## Requirements
 
