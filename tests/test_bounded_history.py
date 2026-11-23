@@ -5,7 +5,7 @@ source completeness and genuine Home Assistant Recorder uptime.
 """
 
 from contextlib import nullcontext
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from zoneinfo import ZoneInfo
@@ -117,13 +117,13 @@ def test_missing_first_or_later_boundary_is_not_inferred(before, after):
 def test_existing_recorder_gap_is_not_replaced_with_inferred_whole_day():
     start, end = local_day_bounds(DAY, ZONE)
     native = SimpleNamespace(
-        start=start, end=start.replace(hour=12), closed_incorrect=False
+        start=start, end=start + timedelta(hours=12), closed_incorrect=False
     )
     events, runs = read_day(
         "binary_sensor.test_anwesenheit_2", native_runs=[native]
     )
     assert len(runs) == 1
-    assert runs[0] == Coverage(start, start.replace(hour=12))
+    assert runs[0] == Coverage(start, start + timedelta(hours=12))
     result = reconstruct(
         DAY, ZONE, events["binary_sensor.test_anwesenheit_2"], runs,
         lambda value: value == "on",
