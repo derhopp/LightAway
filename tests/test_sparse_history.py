@@ -68,10 +68,7 @@ def test_old_off_light_state_and_midday_switch_are_replayed():
     assert timeline.valid
     assert [row.value for row in timeline.transitions] == ["off", "off", "on"]
     assert desired_state(timeline, datetime(2026, 11, 23, 8, tzinfo=ZONE), ZONE) == "off"
-    assert (
-        desired_state(timeline, datetime(2026, 11, 23, 18, tzinfo=ZONE), ZONE)
-        == "on"
-    )
+    assert desired_state(timeline, datetime(2026, 11, 23, 18, tzinfo=ZONE), ZONE) == "on"
 
 
 def test_long_recording_outage_does_not_qualify_a_day():
