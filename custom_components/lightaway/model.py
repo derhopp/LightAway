@@ -31,6 +31,9 @@ class Coverage:
     # None is an ordinary HA Recorder run; an ID scopes verified imported
     # coverage to the source entity only.
     entity_id: str | None = None
+    # Provenance for diagnostics. Inferred state-history coverage is not
+    # equivalent to verified Historian coverage or native Recorder uptime.
+    source: str = "recorder"
 
 
 def coverage_for_entity(runs: Iterable[Coverage], entity_id: str) -> list[Coverage]:
