@@ -323,3 +323,26 @@ validation. No workflow publishes releases or Git tags.
 - No user-triggered arbitrary reference date overrides in version 0.1.
 - Automatic Lovelace resource registration is available only in storage mode.
 - Daily historical scans can take time with many lights and a year of history.
+
+## Historical state-change histories predating Home Assistant Recorder
+
+LightAway can use old state-change records already stored in Home Assistant
+Recorder even if there were no actual Home Assistant `RecorderRuns` on that
+historical date. When a real, entity-specific observation at or before the
+candidate day's start and another observation **after** the candidate day's
+end bound that date, LightAway can reconstruct the intervening states from
+the stored changes. This applies independently to the presence sensor and
+every chosen light.
+
+This **bounded_state_history** mode is an *inference from last-known
+states*, not evidence that the original CCU-Historian or Home Assistant
+Recorder continuously captured all changes. Unknown intermediate changes
+cannot be detected. It does **not** override known native Recorder gaps or
+failed overlapping MoreRecords completeness certificates. Verifiably
+complete CCU-Historian intervals still require explicit certification.
+
+In downloaded diagnostics, `presence_coverage_sources` and per-light
+`coverage_sources` distinguish `bounded_state_history` from `recorder`
+and `ccu_historian_verified`. Review the results with simulation off before
+allowing LightAway to operate lights.
+
