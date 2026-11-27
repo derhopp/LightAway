@@ -25,7 +25,7 @@ on matching weekdays near last year, with an optional recent-weeks fallback.
 - Diagnostics download covering the full configured copy-day search with proven Recorder coverage
 - Recalculation after a Home Assistant time zone change
 - Optional, verified entity-scoped CCU-Historian provenance from MoreRecords
-- Stable releases v0.1.0, v0.2.0, v0.3.0 and v0.4.0; opt-in test pre-release v0.4.1b1, v0.4.1b2, v0.4.1b3 and v0.4.1b4 (not marked latest). Further releases require explicit authorization
+- Stable releases v0.1.0, v0.2.0, v0.3.0 and v0.4.0; opt-in test pre-releases v0.4.1b1 through v0.4.1b6 (not marked latest). Further releases require explicit authorization
 
 ## Requirements
 
@@ -43,7 +43,7 @@ Recorder API and SQLAlchemy abstractions, not direct SQLite connections.
 
 1. In HACS, open the integration repositories list and add
    `https://github.com/derhopp/LightAway` as a **custom integration repository**.
-2. Install the latest **stable** LightAway release (`v0.4.0`). The `main` branch is for development. For opt-in testing only, enable the repository's **Pre-release** switch in HACS / Marketplace and choose the pre-release `v0.4.1b5`.
+2. Install the latest **stable** LightAway release (`v0.4.0`). The `main` branch is for development. For opt-in testing only, enable the repository's **Pre-release** switch in HACS / Marketplace and choose the pre-release `v0.4.1b6`.
 3. Restart Home Assistant.
 4. Open **Settings → Devices & services → Add integration → LightAway**.
 5. In your dashboard, add a **Manual** card:

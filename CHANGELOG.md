@@ -1,3 +1,17 @@
+# LightAway 0.4.1 Beta 6
+
+**Branding-only opt-in pre-release (27 November 2026).** Package the two
+user-updated artwork files already committed to `main` in commit
+`f5b277677d1afa2dfedce5b9a8b5e00e91977e51`:
+
+- `custom_components/lightaway/brand/icon.png`
+- `docs/LightAway.png`
+
+No runtime, historical state reconstruction, frontend control, or configuration
+logic has changed since v0.4.1b5. Stable v0.4.0 remains unchanged.
+
+---
+
 # LightAway 0.4.1 Beta 5
 
 When historical entity states exist before the HA Recorder service was
